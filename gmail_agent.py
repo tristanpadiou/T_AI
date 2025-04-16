@@ -20,7 +20,7 @@ from langchain.output_parsers import RetryOutputParser
 import os.path
 import base64
 
-from google.oauth2.credentials import Credentials
+
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -42,113 +42,102 @@ class State(TypedDict):
 
 store=InMemoryStore()
 
-if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json")
-try:
-    # create gmail api client
-    service = build("gmail", "v1", credentials=creds)
-
-except HttpError as error:
-    print(f"An error occurred: {error}")
-
-
-
-    
-
-
-
-def get_new_mail_node(state: State):
-    maxResults=state.get('inbox_max_results')
-    if maxResults:
-        ids=service.users().messages().list(userId='me', includeSpamTrash=False , maxResults=maxResults).execute().get('messages',[])
-    else:
-        ids=service.users().messages().list(userId='me', includeSpamTrash=False , maxResults=5).execute().get('messages',[])
-    messages={}
-
-    for id in ids:
-        mdata=service.users().messages().get(userId="me", id=id["id"], format='full' ).execute()
-        id=mdata.get('id')
-        thread=mdata.get('threadId')
-        label=mdata.get('labelIds')
-        headers={h.get('name'):h.get('value') for h in mdata.get('payload').get('headers')}
-        sender=headers.get('From')
-        date=headers.get('Date')
-        receiver=headers.get('To')
-        subject=headers.get('Subject')
-        snippet=mdata.get('snippet')
-
-        messages[id]={'From':sender,
-                    'To':receiver,
-                    'Date':date,
-                    'label':label,
-                    'subject':subject,
-                    'Snippet':snippet,
-                    'email_id':id,
-                    'thread':thread
-                  
-                    }  
-    return {'inbox':messages}
-
-
-def verify_draft_node(state:State):
-    """tool to verify the current draft
-    
-    args: none
-    """
-    try:
-        create_message=state['current_draft']
-        decoded=base64.urlsafe_b64decode(create_message.get('raw').encode("utf-8")).decode("utf-8")
-        return {'node_message':decoded}
-    except:
-        return {'node_message':'Failed'}
-    
-
-def send_email_node(state:State):
-    """
-    Tool to send the current draft
-    args: - none
-    """
-    try:
-        create_message=state['current_draft']
-        # pylint: disable=E1101
-        send_message = (
-            service.users()
-            .messages()
-            .send(userId="me", body=create_message)
-            .execute()
-        )
-        return {'node_message':'Email Sent'}
-    except:
-        return {'node_message':'Failed'}
-    
-
-
-def show_inbox_node(state: State):
-    return {'node_message': state.get('inbox')}
-
-
-def router(state:State):
-    route = state.get('route')
-    
-    routing_map = {
-        'display_email': 'to_display_email',
-        'send_email': 'to_send_email',
-        'verify_draft': 'to_verify_draft',
-        'create_email': 'to_create_email',
-        'show_inbox': 'to_show_inbox',
-        'get_new_mail': 'to_get_new_mail',
-        'END': 'to_end'
-    }
-    
-    return routing_map.get(route)
-
-
 
 class Gmail_agent:
-    def __init__(self,llm : any):
-        self.agent=self._setup(llm)
+    def __init__(self,llm : any, creds: any):
+        self.agent=self._setup(llm) 
+        self.service=self.build_service(creds)
+    def build_service(self, creds):
+        try:
+            service = build("gmail", "v1", credentials=creds)
+            return service
+        except HttpError as error:
+            print(f"An error occurred: {error}")
     def _setup(self,llm):
-    
+        def get_new_mail_node(state: State):
+            maxResults=state.get('inbox_max_results')
+            if maxResults:
+                ids=self.service.users().messages().list(userId='me', includeSpamTrash=False , maxResults=maxResults).execute().get('messages',[])
+            else:
+                ids=self.service.users().messages().list(userId='me', includeSpamTrash=False , maxResults=5).execute().get('messages',[])
+            messages={}
+
+            for id in ids:
+                mdata=self.service.users().messages().get(userId="me", id=id["id"], format='full' ).execute()
+                id=mdata.get('id')
+                thread=mdata.get('threadId')
+                label=mdata.get('labelIds')
+                headers={h.get('name'):h.get('value') for h in mdata.get('payload').get('headers')}
+                sender=headers.get('From')
+                date=headers.get('Date')
+                receiver=headers.get('To')
+                subject=headers.get('Subject')
+                snippet=mdata.get('snippet')
+
+                messages[id]={'From':sender,
+                            'To':receiver,
+                            'Date':date,
+                            'label':label,
+                            'subject':subject,
+                            'Snippet':snippet,
+                            'email_id':id,
+                            'thread':thread
+                        
+                            }  
+            return {'inbox':messages}
+
+
+        def verify_draft_node(state:State):
+            """tool to verify the current draft
+            
+            args: none
+            """
+            try:
+                create_message=state['current_draft']
+                decoded=base64.urlsafe_b64decode(create_message.get('raw').encode("utf-8")).decode("utf-8")
+                return {'node_message':decoded}
+            except:
+                return {'node_message':'Failed'}
+            
+
+        def send_email_node(state:State):
+            """
+            Tool to send the current draft
+            args: - none
+            """
+            try:
+                create_message=state['current_draft']
+                # pylint: disable=E1101
+                send_message = (
+                    self.service.users()
+                    .messages()
+                    .send(userId="me", body=create_message)
+                    .execute()
+                )
+                return {'node_message':'Email Sent'}
+            except:
+                return {'node_message':'Failed'}
+            
+
+
+        def show_inbox_node(state: State):
+            return {'node_message': state.get('inbox')}
+
+
+        def router(state:State):
+            route = state.get('route')
+            
+            routing_map = {
+                'display_email': 'to_display_email',
+                'send_email': 'to_send_email',
+                'verify_draft': 'to_verify_draft',
+                'create_email': 'to_create_email',
+                'show_inbox': 'to_show_inbox',
+                'get_new_mail': 'to_get_new_mail',
+                'END': 'to_end'
+            }
+            
+            return routing_map.get(route)
         def display_email_node(state:State):
             class EmailID(BaseModel):
                 id: str = Field(description="The ID of the Email to display")
@@ -177,7 +166,7 @@ class Gmail_agent:
 
             
             try:
-                mdata=service.users().messages().get(userId="me", id=response.get('id'), format='full' ).execute()
+                mdata=self.service.users().messages().get(userId="me", id=response.get('id'), format='full' ).execute()
                 id=mdata.get('id')
                 thread=mdata.get('threadId')
                 label=mdata.get('labelIds')

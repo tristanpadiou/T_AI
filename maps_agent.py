@@ -32,14 +32,7 @@ from googleapiclient.errors import HttpError
 from google.maps import places_v1
 load_dotenv()
 
-if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json")
-try:
 
-    client = places_v1.PlacesClient(credentials=creds)
-
-except HttpError as error:
-    print(f"An error occurred: {error}")
 
 
 class State(TypedDict):
@@ -80,40 +73,47 @@ def get_current_location_node(state: State):
     else:
         return {'node_message':'failed'}
     
-def look_for_places_node(state: State):
-    """
-    Tool to look for places based on the user query and location.
-    Use this tool for more complex user queries like sentences, and if the location is specified in the query.
-    Places includes restaurants, bars, speakeasy, games, anything.
-    args: query - the query.
-    Alaways include the links in the response
-    """
-    try:
-        request=places_v1.SearchTextRequest(text_query=state['query'])
-        response=client.search_text(request=request,metadata=[("x-goog-fieldmask", "places.displayName,places.formattedAddress,places.priceLevel,places.googleMapsUri")]) 
-        places={}
-        for i in response.places:
-            address=i.formatted_address
-            name=i.display_name.text
-            price_level=i.price_level
-            url=i.google_maps_uri
-            places[name]={'address':address,
-                        'price_level':price_level,
-                        'google_maps_url':url}
-                
-        return {'places':places,
-                'node_message':places}
-                               
-    except: 
-        return {'node_message':'failed'}
+
     
 class Maps_agent:
-    def __init__(self,llm: any):
+    def __init__(self,llm: any, creds: any):
         self.agent=self._setup(llm)
-        
+        self.client=self.build_service(creds)
+    def build_service(self, creds):
+        try:
+            client = places_v1.PlacesClient(credentials=creds)
+            return client
+        except HttpError as error:
+            print(f"An error occurred: {error}")
 
     def _setup(self,llm):
         # langgraph_tools=[get_current_location_tool,look_for_places, show_places_found]
+        def look_for_places_node(state: State):
+            """
+            Tool to look for places based on the user query and location.
+            Use this tool for more complex user queries like sentences, and if the location is specified in the query.
+            Places includes restaurants, bars, speakeasy, games, anything.
+            args: query - the query.
+            Alaways include the links in the response
+            """
+            try:
+                request=places_v1.SearchTextRequest(text_query=state['query'])
+                response=self.client.search_text(request=request,metadata=[("x-goog-fieldmask", "places.displayName,places.formattedAddress,places.priceLevel,places.googleMapsUri")]) 
+                places={}
+                for i in response.places:
+                    address=i.formatted_address
+                    name=i.display_name.text
+                    price_level=i.price_level
+                    url=i.google_maps_uri
+                    places[name]={'address':address,
+                                'price_level':price_level,
+                                'google_maps_url':url}
+                        
+                return {'places':places,
+                        'node_message':places}
+                                    
+            except: 
+                return {'node_message':'failed'}
         def agent_node(state:State):
             class Form(BaseModel):
                 route: str = Field(description= 'return current_loc or look_for_places')

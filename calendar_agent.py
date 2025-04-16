@@ -30,14 +30,7 @@ class State(TypedDict):
     route: str
     query: str
 
-if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json")
 
-try:
-    service = build("calendar", "v3", credentials=creds)
-
-except HttpError as error:
-    print(f"An error occurred: {error}")
 
 def router(state:State):
     route = state.get('route')
@@ -52,37 +45,7 @@ def router(state:State):
 
  
 
-def get_events_node(state: State):
-    now = datetime.datetime.now().isoformat() + "Z"  # 'Z' indicates UTC time
 
-    events_result = (
-        service.events()
-        .list(
-            calendarId="primary",
-            timeMin=now,
-            maxResults=20,
-            singleEvents=True,
-            orderBy="startTime",
-        )
-        .execute()
-    )
-    events = events_result.get("items", [])
-    ev={}
-    for e in events:
-        try:
-            id= e.get('id')
-            summary=e.get('summary')
-            creator=e.get('creator')
-            start=e.get("start").get("dateTime", e.get("start").get("date"))
-            end=e.get("end").get("dateTime", e.get("end").get("date"))
-            ev[start]={'summary':summary,
-                    'creator':creator,
-                    'start':start,
-                    'end':end,
-                        'event_id':id}
-        except: ev[start]=e
-
-    return {'calendar':ev}
 
 def show_calendar_node(state:State):
     return {'node_message':state.get('calendar')}
@@ -91,8 +54,15 @@ def show_calendar_node(state:State):
     
 
 class Calendar_agent:
-    def __init__(self,llm: any):
+    def __init__(self,llm: any, creds: any):
         self.agent=self._setup(llm)
+        self.service=self.build_service(creds)
+    def build_service(self, creds):
+        try:
+            service = build("calendar", "v3", credentials=creds)
+            return service
+        except HttpError as error:
+            print(f"An error occurred: {error}")
     def _setup(self,llm):
         def agent_node(state:State):
             class Route(BaseModel):
@@ -122,7 +92,37 @@ class Calendar_agent:
                 prompt_value = prompt.format_prompt(query=state['query'])
                 response=retry_parser.parse_with_prompt(response.content, prompt_value)
                 return {'route':response.get('route')} 
-     
+        def get_events_node(state: State):
+            now = datetime.datetime.now().isoformat() + "Z"  # 'Z' indicates UTC time
+
+            events_result = (
+                self.service.events()
+                .list(
+                    calendarId="primary",
+                    timeMin=now,
+                    maxResults=20,
+                    singleEvents=True,
+                    orderBy="startTime",
+                )
+                .execute()
+            )
+            events = events_result.get("items", [])
+            ev={}
+            for e in events:
+                try:
+                    id= e.get('id')
+                    summary=e.get('summary')
+                    creator=e.get('creator')
+                    start=e.get("start").get("dateTime", e.get("start").get("date"))
+                    end=e.get("end").get("dateTime", e.get("end").get("date"))
+                    ev[start]={'summary':summary,
+                            'creator':creator,
+                            'start':start,
+                            'end':end,
+                                'event_id':id}
+                except: ev[start]=e
+
+            return {'calendar':ev}
         def create_event_node(state: State):
     
             class Event(BaseModel):
@@ -178,7 +178,7 @@ class Calendar_agent:
             },
             }
             try:
-                event = service.events().insert(calendarId='primary', body=event).execute()
+                event = self.service.events().insert(calendarId='primary', body=event).execute()
                 return {'node_massage':'Event Created'}
             except: 
                 return {'node_message':'Failed to create event'}
@@ -213,7 +213,7 @@ class Calendar_agent:
                 response=retry_parser.parse_with_prompt(response.content, prompt_value)
             
             try:
-                created_event = service.events().quickAdd(
+                created_event = self.service.events().quickAdd(
                 calendarId='primary',
                 text=response.get('event_description')).execute()
                 return {'node_massage':'Event Created'}

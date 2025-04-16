@@ -50,65 +50,72 @@ except HttpError as error:
     print(f"An error occurred: {error}")
 
 
-def router(state: State):
-    route = state.get('route')
-    
-    routing_map = {
-        'create_task': 'to_create_task',
-        'list_tasks_from_specific_tasklist': 'to_list_tasks_from_specific_tasklist',
-        'list_tasks': 'to_list_all_tasks',
-        'get_task_details': 'to_get_task_details',
-        'show_tasklists': 'to_show_tasklists',
-        'complete_task': 'to_complete_task',
-        'END': 'to_end'
-    }
-    
-    return routing_map.get(route)
-
-def show_tasklists_node(state:State):
-    return {'node_message':state.get('tasklists')}
-
-
-def get_tasklists_node(state: State):
-    """Tool to get the tasklists, can be used to refresh tasklists
-    agrs: none
-    """
-    try:
-        tasklists=service.tasklists().list(maxResults=10).execute()
-        tasklists={tasklist.get('title'):tasklist for tasklist in tasklists.get('items')}
-       
-        return {'tasklists':tasklists}
-    except:  
-        return {'node_message':'failed to get tasklists'}
-
-def get_tasks_node(state:State):
-    try:
-        tasklists=state.get('tasklists')
-        tasklist=service.tasks().list(tasklist=tasklists['My Tasks']['id']).execute()
-        tasks={task.get('title'):task for task in tasklist.get('items')}
-        tasks={'id':tasklists['My Tasks']['id'],
-           'tasks':tasks}
-        return {'tasklist':tasks}
-    except: 
-        return {'node_message':'failed to get tasklist'}
-    
-def list_tasks_node(state: State):
-
-    
-    try:
-        tasks=state.get('tasklist')
-        
-        return {
-                    'node_message':tasks}
-    except: 
-        return {'node_message':'failed to get tasklist'}
 
 
 
 class Tasks_agent:
-    def __init__(self,llm : any):
+    def __init__(self,llm : any, creds: any):
         self.agent=self._setup(llm)
+        self.service=self.build_service(creds)
+    def build_service(self, creds):
+        try:
+            service = build("tasks", "v1", credentials=creds)
+            return service
+        except HttpError as error:
+            print(f"An error occurred: {error}")
     def _setup(self,llm):
+        def router(state: State):
+            route = state.get('route')
+            
+            routing_map = {
+                'create_task': 'to_create_task',
+                'list_tasks_from_specific_tasklist': 'to_list_tasks_from_specific_tasklist',
+                'list_tasks': 'to_list_all_tasks',
+                'get_task_details': 'to_get_task_details',
+                'show_tasklists': 'to_show_tasklists',
+                'complete_task': 'to_complete_task',
+                'END': 'to_end'
+            }
+            
+            return routing_map.get(route)
+
+        def show_tasklists_node(state:State):
+            return {'node_message':state.get('tasklists')}
+
+
+        def get_tasklists_node(state: State):
+            """Tool to get the tasklists, can be used to refresh tasklists
+            agrs: none
+            """
+            try:
+                tasklists=self.service.tasklists().list(maxResults=10).execute()
+                tasklists={tasklist.get('title'):tasklist for tasklist in tasklists.get('items')}
+            
+                return {'tasklists':tasklists}
+            except:  
+                return {'node_message':'failed to get tasklists'}
+
+        def get_tasks_node(state:State):
+            try:
+                tasklists=state.get('tasklists')
+                tasklist=self.service.tasks().list(tasklist=tasklists['My Tasks']['id']).execute()
+                tasks={task.get('title'):task for task in tasklist.get('items')}
+                tasks={'id':tasklists['My Tasks']['id'],
+                'tasks':tasks}
+                return {'tasklist':tasks}
+            except: 
+                return {'node_message':'failed to get tasklist'}
+            
+        def list_tasks_node(state: State):
+
+            
+            try:
+                tasks=state.get('tasklist')
+                
+                return {
+                            'node_message':tasks}
+            except: 
+                return {'node_message':'failed to get tasklist'}
 
 
         def agent_node(state:State):
@@ -161,7 +168,7 @@ class Tasks_agent:
                 response=retry_parser.parse_with_prompt(response.content, prompt_value)
 
             
-            tasklist=service.tasks().list(tasklist=response.get('tasklist_id')).execute()
+            tasklist=self.service.tasks().list(tasklist=response.get('tasklist_id')).execute()
             tasks={task.get('title'):task for task in tasklist.get('items')}
             tasks={'id':response.get('tasklist_id'),
                 'tasks':tasks}
@@ -195,7 +202,7 @@ class Tasks_agent:
                 response=retry_parser.parse_with_prompt(response.content, prompt_value)
 
             tasklist_id=state['tasklist'].get('id')
-            task=service.tasks().get(tasklist=tasklist_id, task=response.get('task_id')).execute()
+            task=self.service.tasks().get(tasklist=tasklist_id, task=response.get('task_id')).execute()
             return {'node_message':task}
         
         def complete_task_node(state:State):
@@ -227,10 +234,10 @@ class Tasks_agent:
                 
             try:
                 tasklist_id=state['tasklist'].get('id')
-                task=service.tasks().get(tasklist=tasklist_id, task=response.get('task_id')).execute()
+                task=self.service.tasks().get(tasklist=tasklist_id, task=response.get('task_id')).execute()
                 task['status']='completed'
-                response=service.tasks().update(tasklist=tasklist_id,task=response.get('task_id'), body=task).execute()
-                clear=service.tasks().clear(tasklist=tasklist_id).execute()
+                response=self.service.tasks().update(tasklist=tasklist_id,task=response.get('task_id'), body=task).execute()
+                clear=self.service.tasks().clear(tasklist=tasklist_id).execute()
                 return {'node_message': 'Task Completed'}
             except:
                 return {'node_message':' couldnt complete task'}
@@ -266,7 +273,7 @@ class Tasks_agent:
 
             tasklist_id=state['tasklist'].get('id')
             try:
-                task=service.tasks().insert(tasklist=tasklist_id,body=response).execute()
+                task=self.service.tasks().insert(tasklist=tasklist_id,body=response).execute()
                 return {'node_message':'task created'}
             
             except:

@@ -22,18 +22,10 @@ from langchain_core.prompts import PromptTemplate
 from langchain.output_parsers import RetryOutputParser
 import os.path
 
-from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json")
-try:
-    # create gmail api client
-    service = build("people", "v1", credentials=creds)
 
-except HttpError as error:
-    print(f"An error occurred: {error}")
 
 
 class State(TypedDict):
@@ -114,46 +106,55 @@ class ContactBody(BaseModel):
     emailAddresses: Optional[List[EmailAddress]] = Field(None, description="The person's email addresses.")
 
 
-def update_contacts_list_node(state: State):
-    """
-    Tool to display a list of contacts and their resource name to use to get a specific contacts details
-    args: none
-    """
-    
-    try:
-        results = (
-            service.people()
-            .connections()
-            .list(
-                resourceName="people/me",
-                pageSize=100,
-                personFields="names",
-            )
-            .execute()
-        )
-        connections = results.get("connections", [])
-        contact={}
-        for person in connections:
-            resourcename=person.get('resourceName')
-            etag=person.get('etag')
-            names = person.get("names", [])
-            if names:
-                name = names[0].get("displayName")
-            contact[name]={'resourcename':resourcename,
-                            'etag':etag}
-        return {'contacts':contact}
-    except:
-        return {'node_message':'failed'}
-    
-def show_contacts_node(state:State):
-    contacts=state['contacts']
 
-    return  {'node_message':contacts}
 
 class Contacts_agent:
-    def __init__(self,llm:any):
+    def __init__(self,llm:any, creds:any):
         self.agent=self._setup(llm)
+        self.service=self.build_service(creds)
+    def build_service(self, creds):
+        try:
+            service = build("people", "v1", credentials=creds)
+            return service
+        except HttpError as error:
+            print(f"An error occurred: {error}")
     def _setup(self,llm):
+        
+        def update_contacts_list_node(state: State):
+            """
+            Tool to display a list of contacts and their resource name to use to get a specific contacts details
+            args: none
+            """
+            
+            try:
+                results = (
+                    self.service.people()
+                    .connections()
+                    .list(
+                        resourceName="people/me",
+                        pageSize=100,
+                        personFields="names",
+                    )
+                    .execute()
+                )
+                connections = results.get("connections", [])
+                contact={}
+                for person in connections:
+                    resourcename=person.get('resourceName')
+                    etag=person.get('etag')
+                    names = person.get("names", [])
+                    if names:
+                        name = names[0].get("displayName")
+                    contact[name]={'resourcename':resourcename,
+                                    'etag':etag}
+                return {'contacts':contact}
+            except:
+                return {'node_message':'failed'}
+        
+        def show_contacts_node(state:State):
+            contacts=state['contacts']
+
+            return  {'node_message':contacts}
         def get_contact_details_node(state:State):
 
             class Resourcename_shema(BaseModel):
@@ -172,7 +173,7 @@ class Contacts_agent:
                 response=chain.invoke({'query':f'based on this list of contacts: {state['contacts']}, return the details of the contact mentionned in this query:{state['query']}'}) 
                 try:
                     response=parser.parse(response.content)
-                    results=service.people().get(resourceName=response['resourcename'],personFields='names,addresses,phoneNumbers,birthdays,biographies,emailAddresses').execute()
+                    results=self.service.people().get(resourceName=response['resourcename'],personFields='names,addresses,phoneNumbers,birthdays,biographies,emailAddresses').execute()
                     return {'contact_details':results}
                 except:
                     try:
@@ -181,7 +182,7 @@ class Contacts_agent:
                         prompt_value = prompt.format_prompt(query=state['query'])
                         response=retry_parser.parse_with_prompt(response.content, prompt_value) 
                 
-                        results=service.people().get(resourceName=response['resourcename'],personFields='names,addresses,phoneNumbers,birthdays,biographies,emailAddresses').execute()
+                        results=self.service.people().get(resourceName=response['resourcename'],personFields='names,addresses,phoneNumbers,birthdays,biographies,emailAddresses').execute()
                         return {'contact_details':results,
                                 'node_message':results}
                     except:
@@ -266,7 +267,7 @@ class Contacts_agent:
                     response=parser.parse(response.content)
                     resourcename=state.get('contact_details').get('resourceName')
 
-                    results=(service.people().updateContact(resourceName=resourcename, body=response['body'], updatePersonFields=response['updatePersonFields']).execute())
+                    results=(self.service.people().updateContact(resourceName=resourcename, body=response['body'], updatePersonFields=response['updatePersonFields']).execute())
                     return {'node_message':results}
                 except:
                     try:
@@ -275,7 +276,7 @@ class Contacts_agent:
                         prompt_value = prompt.format_prompt(query=state['query'])
                         response=retry_parser.parse_with_prompt(response.content, prompt_value) 
                         resourcename=response.get('resourcename')
-                        results=(service.people().updateContact(resourceName=response['body'].get('resourcename'), body=response['body'], updatePersonFields=response['updatePersonFields']).execute())
+                        results=(self.service.people().updateContact(resourceName=response['body'].get('resourcename'), body=response['body'], updatePersonFields=response['updatePersonFields']).execute())
                         return {'node_message':results}
                     except:
                         return {'node_message':'failed'} 
@@ -298,7 +299,7 @@ class Contacts_agent:
             response=chain.invoke({'query':state['query']}) 
             try:
                 response=parser.parse(response.content)
-                results=service.people().createContact(body=response).execute()
+                results=self.service.people().createContact(body=response).execute()
                 return {'node_message':results}
             except:
                 try:
@@ -306,7 +307,7 @@ class Contacts_agent:
 
                     prompt_value = prompt.format_prompt(query=state['query'])
                     response=retry_parser.parse_with_prompt(response.content, prompt_value)  
-                    results=service.people().createContact(body=response).execute()
+                    results=self.service.people().createContact(body=response).execute()
                     return {'node_message':results}
                 except:
                     return {'node_message':'failed'}
@@ -329,7 +330,7 @@ class Contacts_agent:
                 try:
                     response=parser.parse(response.content)
                     
-                    service.people().deleteContact(resourceName=response['resourcename']).execute()
+                    self.service.people().deleteContact(resourceName=response['resourcename']).execute()
                     return {'node_message':'contact deleted'}
                 except:
                     try:
@@ -338,7 +339,7 @@ class Contacts_agent:
                         prompt_value = prompt.format_prompt(query=state['query'])
                         response=retry_parser.parse_with_prompt(response.content, prompt_value) 
                 
-                        service.people().deleteContact(resourceName=response['resourcename']).execute()
+                        self.service.people().deleteContact(resourceName=response['resourcename']).execute()
                         return  {'node_message':'contact deleted'}
                     except:
                         return {'node_message':'failed'}
