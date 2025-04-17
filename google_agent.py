@@ -133,7 +133,8 @@ class ManagerTools(BaseModel):
                     ManagerCapability(action="display mail details", description="Retrieves the details of a specific email"),
                     ManagerCapability(action="create email", description="Composes a new email using the email adress"),
                     ManagerCapability(action="verify email content", description="Checks the content of an email"),
-                    ManagerCapability(action="send email", description="Sends a composed email")
+                    ManagerCapability(action="send email", description="Sends a composed email"),
+                    ManagerCapability(action="create draft", description="Creates a draft email")
             
                 ]
             ),

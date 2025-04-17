@@ -134,8 +134,9 @@ class Gmail_agent:
                 'create_email': 'to_create_email',
                 'show_inbox': 'to_show_inbox',
                 'get_new_mail': 'to_get_new_mail',
+                'create_draft': 'to_create_draft',
                 'END': 'to_end'
-            }
+            }   
             
             return routing_map.get(route)
         def display_email_node(state:State):
@@ -240,10 +241,52 @@ class Gmail_agent:
             
             create_message = {"raw": encoded_message}
             return{'current_draft':create_message}
+        
+        def create_draft_node(state:State):
+            class DraftInput(BaseModel):
+                receiver: str = Field(description="Email address of the recipient")
+                content: str = Field(description="Body content of the email")
+                email_subject: str = Field(description="Subject line of the email")
 
+            parser=JsonOutputParser(pydantic_object=DraftInput)
+            prompt = PromptTemplate(
+            template="Answer the user query.\n{format_instructions}\n{query}\n",
+            input_variables=["query"],
+            partial_variables={"format_instructions": parser.get_format_instructions()},
+            )   
+            chain = prompt | llm 
+            
+            response=chain.invoke({'query':f'create a draft based on this query: {state.get('query')}'}) 
+            try:
+                response=parser.parse(response.content)
+                
+            except:
+                retry_parser = RetryOutputParser.from_llm(parser=parser, llm=llm)
+
+                prompt_value = prompt.format_prompt(query=state['query'])
+                response=retry_parser.parse_with_prompt(response.content, prompt_value)     
+                
+            message = EmailMessage()
+
+            message.set_content(response.get('content'))
+
+            message["To"] = response.get('receiver')
+            message["From"] = "me"
+            message["Subject"] = response.get('email_subject')
+
+            encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+            
+            create_message = {"raw": encoded_message}
+            draft = (
+                self.service.users()
+                .drafts()
+                .create(userId="me", body=create_message)
+                .execute()
+            )
+            return {'node_message':'Draft Created'}
         def agent_node(state:State):
             class Route(BaseModel):
-                    route: str = Field(description="the route for the next node, either, display_email, send_email, verify_draft, create_email, show_inbox, get_new_mail or END")
+                    route: str = Field(description="the route for the next node, either, display_email, send_email, verify_draft, create_email, show_inbox, get_new_mail, create_draft or END")
                     inbox_max_results: int = Field(description="the number of results to get")
                     
 
@@ -281,6 +324,7 @@ class Gmail_agent:
         graph_builder.add_node("show_inbox", show_inbox_node)
         graph_builder.add_node('agent',agent_node)
         graph_builder.add_node('get_new_mail',get_new_mail_node)
+        graph_builder.add_node('create_draft',create_draft_node)
         # Any time a tool is called, we return to the chatbot to decide the next step
         graph_builder.set_entry_point("get_new_mail")
         graph_builder.add_edge("get_new_mail", "agent")
@@ -293,6 +337,7 @@ class Gmail_agent:
                     'to_create_email': 'create_email',
                     'to_show_inbox': 'show_inbox',
                     'to_get_new_mail': 'get_new_mail',
+                    'to_create_draft': 'create_draft',
                     'to_end':END
                 }
         )
@@ -300,6 +345,7 @@ class Gmail_agent:
         graph_builder.add_edge('send_email',END)
         graph_builder.add_edge('verify_draft',END)
         graph_builder.add_edge('create_email', END)
+        graph_builder.add_edge('create_draft', END)
         graph_builder.add_edge("show_inbox", END)
         memory=MemorySaver()
         graph=graph_builder.compile(checkpointer=memory,store=store)
