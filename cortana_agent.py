@@ -21,12 +21,22 @@ class Deps:
 
 
 class Cortana_agent:
-    def __init__(self, api_keys:dict):
+    def __init__(self):
+        
+        self.memory=Message_state(messages=[])
+        self.deps=Deps(deep_research_output={})
+
+    async def chat(self, query:str,api_keys:dict):
         """
         Args:
             
             api_keys (dict): The API keys to use as a dictionary
+                                {google_api_key (str): The Google API key
+                                tavily_key (str): The Tavily API key
+                                pse (str): The PSE API key
+                                creds (str): The credentials from google} 
         """
+        
         pydantic_llm=GeminiModel('gemini-2.0-flash', provider=GoogleGLAProvider(api_key=api_keys['google_api_key']))
         GEMINI_MODEL='gemini-2.0-flash'
         langchain_llm = ChatGoogleGenerativeAI(google_api_key=api_keys['google_api_key'], model=GEMINI_MODEL, temperature=0.3)
@@ -85,12 +95,17 @@ class Cortana_agent:
             return f"The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         
 
-        self.agent=Agent(pydantic_llm, tools=[google_agent_tool, search_and_question_answering_tool, get_current_time_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        agent=Agent(pydantic_llm, tools=[google_agent_tool, search_and_question_answering_tool, get_current_time_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you can use the tools provided to you to help the user with their queries")
-        self.memory=Message_state(messages=[])
-        self.deps=Deps(deep_research_output={})
-        
-    async def chat(self, query:str):
-        result=await self.agent.run(query, deps=self.deps, message_history=self.memory.messages)
+
+
+        result=await agent.run(query, deps=self.deps, message_history=self.memory.messages)
         self.memory.messages=result.all_messages()
         return result.data
+    
+    def reset_memory(self):
+        """
+        Reset the memory of the agent
+        """
+        self.memory.messages=[]
+        self.deps.deep_research_output={}

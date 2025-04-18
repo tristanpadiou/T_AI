@@ -44,7 +44,7 @@ def get_creds():
       with open("token.json", "w") as token:
         token.write(creds.to_json())
     
-    return ' token available '
+    return creds.to_json()
       
   except Exception as e:
     print(f"Error in get_creds: {e}")
