@@ -387,9 +387,10 @@ class Google_agent:
             """Tool to use to answer any email related queries
             this tool can:
             show the inbox
-            get a specific mail's content to display
-        
+            get or read a specific mail's content to display
+            
             create an email
+            create a draft email
             verify the email content
             send the email
 

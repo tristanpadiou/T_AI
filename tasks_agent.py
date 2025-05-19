@@ -12,9 +12,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain.output_parsers import RetryOutputParser
 from langgraph.types import Command
-from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.tools.base import InjectedToolCallId
-from langgraph.store.memory import InMemoryStore
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 from typing import Annotated
@@ -38,16 +36,6 @@ class State(TypedDict):
     node_message: str
     tasklists:dict
     tasklist:dict
-
-
-if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json")
-try:
-    # create gmail api client
-    service = build("tasks", "v1", credentials=creds)
-
-except HttpError as error:
-    print(f"An error occurred: {error}")
 
 
 
@@ -314,8 +302,8 @@ class Tasks_agent:
         graph_builder.add_edge('get_task_details',END)
         graph_builder.add_edge('list_tasks',END)
         graph_builder.add_edge('list_tasks_from_specific_tasklist',END)
-        memory=MemorySaver()
-        graph=graph_builder.compile(checkpointer=memory)
+        
+        graph=graph_builder.compile()
         return graph
         
 

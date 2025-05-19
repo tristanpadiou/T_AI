@@ -6,8 +6,8 @@ from langchain_core.messages import (
     HumanMessage,
 )
 
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.store.memory import InMemoryStore
+
+
 
 from pydantic import BaseModel,Field
 from typing_extensions import TypedDict
@@ -38,7 +38,7 @@ class State(TypedDict):
     contact_details: dict
     route: str
 
-store=InMemoryStore()
+
 
 
 def router_node(state=State):
@@ -386,8 +386,8 @@ class Contacts_agent:
         graph_builder.add_edge("show_contacts",END)
 
 
-        memory=MemorySaver()
-        graph=graph_builder.compile(checkpointer=memory, store=store)
+        
+        graph=graph_builder.compile()
         return graph
         
 

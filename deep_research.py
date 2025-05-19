@@ -8,7 +8,8 @@ from typing import  List, Dict, Optional, Any
 from tavily import TavilyClient
 from IPython.display import Image, display
 import time
-
+import nest_asyncio
+nest_asyncio.apply()
 # load_dotenv()
 # google_api_key=os.getenv('google_api_key')
 # tavily_key=os.getenv('tavily_key')
@@ -47,19 +48,19 @@ class Deep_research_engine:
 
 
 
-        paper_layout_agent=Agent(llm, result_type=Paper_layout, system_prompt="generate a paper layout based on the query, preliminary_search, search_results,include a Title for the paper, for the paragraphs only include the title, no content, no image, no table, start with introduction and end with conclusion")
-        paragraph_gen_agent=Agent(llm, result_type=paragraph_content, system_prompt="generate a paragraph synthesizing the research_results based on the title,what the paragraph should include, and what has already been written to avoid repetition")
+        paper_layout_agent=Agent(llm, output_type=Paper_layout, instructions="generate a paper layout based on the query, preliminary_search, search_results,include a Title for the paper, for the paragraphs only include the title, no content, no image, no table, start with introduction and end with conclusion")
+        paragraph_gen_agent=Agent(llm, output_type=paragraph_content, instructions="generate a paragraph synthesizing the research_results based on the title,what the paragraph should include, and what has already been written to avoid repetition")
         class PaperGen_node(BaseNode[State]):
             async def run(self, ctx: GraphRunContext[State])->End:
                 prompt=(f'query:{ctx.state.query}, preliminary_search:{ctx.state.preliminary_research},search_results:{ctx.state.research_results.research_results}')
-                result=await paper_layout_agent.run(prompt)
+                result=paper_layout_agent.run_sync(prompt)
                 paragraphs=[]
-                for i in result.data.paragraphs:
+                for i in result.output.paragraphs:
                     time.sleep(2)
-                    paragraph_data=await paragraph_gen_agent.run(f'title:{i.title}, should_include:{i.should_include}, research_results:{ctx.state.research_results.research_results}, already_written:{paragraphs}')
-                    paragraphs.append(paragraph_data.data.model_dump())
+                    paragraph_data=paragraph_gen_agent.run_sync(f'title:{i.title}, should_include:{i.should_include}, research_results:{ctx.state.research_results.research_results}, already_written:{paragraphs}')
+                    paragraphs.append(paragraph_data.output.model_dump())
 
-                paper={'title':result.data.title,
+                paper={'title':result.output.title,
                         'paragraphs':paragraphs,
                         'references':ctx.state.research_results.references if ctx.state.research_results.references else None}
 
@@ -102,14 +103,14 @@ class Deep_research_engine:
             search_queries: List[search_query] = Field(description='the detailed web search queries for the research')
         
 
-        research_plan_agent=Agent(llm, result_type=Research_plan, system_prompt='generate a detailed research plan breaking down the research into smaller parts based on the query and the preliminary search')
+        research_plan_agent=Agent(llm, output_type=Research_plan, instructions='generate a detailed research plan breaking down the research into smaller parts based on the query and the preliminary search')
 
         class Research_plan_node(BaseNode[State]):
             async def run(self, ctx: GraphRunContext[State])->Research_node:
                 
                 prompt=(f'query:{ctx.state.query}, preliminary_search:{ctx.state.preliminary_research}')
-                result=await research_plan_agent.run(prompt)
-                ctx.state.research_plan=result.data
+                result=research_plan_agent.run_sync(prompt)
+                ctx.state.research_plan=result.output
                 return Research_node()
             
             
@@ -119,8 +120,8 @@ class Deep_research_engine:
             async def run(self, ctx: GraphRunContext[State]) -> Research_plan_node:
                 prompt = (' Do a preliminary search to get a global idea of the subject that the user wants to do reseach on as well as the necessary informations to do a search on.\n'
                         f'The subject is based on the query: {ctx.state.query}, return the results of the search.')
-                result=await search_agent.run(prompt)
-                ctx.state.preliminary_research=result.data
+                result=search_agent.run_sync(prompt)
+                ctx.state.preliminary_research=result.output
                 return Research_plan_node()
 
 
@@ -133,7 +134,7 @@ class Deep_research_engine:
         self.state=State(query='', preliminary_research='', research_plan=[], research_results=[], validation='', final='')
         self.preliminary_search_node=preliminary_search_node()
 
-    async def chat(self,query:str):
+    def chat(self,query:str):
         """Chat with the deep research engine,
         Args:
             query (str): The query to search for
@@ -141,7 +142,7 @@ class Deep_research_engine:
             str: The response from the deep research engine
         """
         self.state.query=query
-        response=await self.graph.run(self.preliminary_search_node,state=self.state)
+        response=self.graph.run_sync(self.preliminary_search_node,state=self.state)
         return response.output
 
 

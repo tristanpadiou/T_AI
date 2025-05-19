@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 
-from langgraph.checkpoint.memory import MemorySaver
+
 from pydantic import BaseModel, Field
 
 from langchain_core.output_parsers import JsonOutputParser
@@ -245,8 +245,8 @@ class Calendar_agent:
         graph_builder.add_edge("show_calendar", END)
         graph_builder.add_edge('create_event', END)
         graph_builder.add_edge('quick_add_event',END)
-        memory=MemorySaver()
-        graph=graph_builder.compile(checkpointer=memory)
+        
+        graph=graph_builder.compile()
         return graph
         
 

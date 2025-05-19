@@ -25,7 +25,7 @@ import base64
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from email.message import EmailMessage
-from langgraph.store.memory import InMemoryStore
+
 
 class State(TypedDict):
     """
@@ -40,7 +40,7 @@ class State(TypedDict):
     route:str
 
 
-store=InMemoryStore()
+
 
 
 class Gmail_agent:
@@ -347,8 +347,8 @@ class Gmail_agent:
         graph_builder.add_edge('create_email', END)
         graph_builder.add_edge('create_draft', END)
         graph_builder.add_edge("show_inbox", END)
-        memory=MemorySaver()
-        graph=graph_builder.compile(checkpointer=memory,store=store)
+        
+        graph=graph_builder.compile()
         return graph
         
 
