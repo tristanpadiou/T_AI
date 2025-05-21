@@ -9,7 +9,9 @@ from pydantic import Field
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.providers.google_gla import GoogleGLAProvider
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+from composio_tools_agent import Composio_agent
+import nest_asyncio
+nest_asyncio.apply()
 
 @dataclass
 class Message_state:
@@ -21,27 +23,17 @@ class Deps:
 
 
 class Cortana_agent:
-    def __init__(self):
-        
-        self.memory=Message_state(messages=[])
-        self.deps=Deps(deep_research_output={})
-
-    async def chat(self, query:str,api_keys:dict):
+    def __init__(self, api_keys:dict):
         """
         Args:
             
             api_keys (dict): The API keys to use as a dictionary
-                                {google_api_key (str): The Google API key
-                                tavily_key (str): The Tavily API key
-                                pse (str): The PSE API key
-                                creds (str): The credentials from google} 
         """
-        
         pydantic_llm=GeminiModel('gemini-2.0-flash', provider=GoogleGLAProvider(api_key=api_keys['google_api_key']))
         GEMINI_MODEL='gemini-2.0-flash'
         langchain_llm = ChatGoogleGenerativeAI(google_api_key=api_keys['google_api_key'], model=GEMINI_MODEL, temperature=0.3)
         # tools
-        google_agent=Google_agent(langchain_llm,api_keys)
+        
         deep_research_engine=Deep_research_engine(pydantic_llm,api_keys)
         
         def google_agent_tool(query:str):
@@ -52,8 +44,12 @@ class Cortana_agent:
             Returns:
                 str: The response from the google agent
             """
-            return google_agent.chat(query)
-
+            google_agent=Google_agent(langchain_llm,api_keys)
+            try:
+                res=google_agent.chat(query)
+                return res
+            except Exception as e:
+                return f"An error occurred: {e}"
        
 
         async def search_and_question_answering_tool(ctx: RunContext[Deps], query:str):
@@ -70,20 +66,19 @@ class Cortana_agent:
             class Route:
                 answer: str = Field(default_factory=None,description="the answer to the question if the question is related to the deep research")
                 route: str = Field(description="the route, either deep_research or answer_question, or quick_research")
-            agent=Agent(pydantic_llm, result_type=Route, system_prompt="you are a router/question answering agent, you are given a query and you need to decide what to do based on the information provided")
-            response=await agent.run(f"based on the query: {query}, and the information provided: {ctx.deps.deep_research_output if ctx.deps.deep_research_output else ''} either answer the question or if the answer is not related to the information provided or need more information, return 'quick_research' or 'deep_research'")
-            route=response.data.route
+            agent=Agent(pydantic_llm, output_type=Route, instructions="you are a router/question answering agent, you are given a query and you need to decide what to do based on the information provided")
+            response= agent.run_sync(f"based on the query: {query}, and the information provided: {ctx.deps.deep_research_output if ctx.deps.deep_research_output else ''} either answer the question or if the answer is not related to the information provided or need more information return 'quick_research' or 'deep_research'")
+            route=response.output.route
             if route=='deep_research':
-                response=await deep_research_engine.chat(query)
+                response=deep_research_engine.chat(query)
                 ctx.deps.deep_research_output=response
                 return response
             elif route=='answer_question':
-                
-                return response.data.answer
+                return response.output.answer
             elif route=='quick_research':
-                quick_research_agent=Agent(pydantic_llm, tools=[tavily_search_tool(api_keys['tavily_key'])], system_prompt="do a websearch based on the query")
-                result=await quick_research_agent.run(query)
-                return result.data
+                quick_research_agent=Agent(pydantic_llm, tools=[tavily_search_tool(api_keys['tavily_key'])], instructions="do a websearch based on the query")
+                result= quick_research_agent.run_sync(query)
+                return result.output
 
         def get_current_time_tool():
             """
@@ -95,17 +90,12 @@ class Cortana_agent:
             return f"The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         
 
-        agent=Agent(pydantic_llm, tools=[google_agent_tool, search_and_question_answering_tool, get_current_time_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(pydantic_llm, tools=[google_agent_tool, search_and_question_answering_tool, get_current_time_tool], instructions="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you can use the tools provided to you to help the user with their queries")
-
-
-        result=await agent.run(query, deps=self.deps, message_history=self.memory.messages)
+        self.memory=Message_state(messages=[])
+        self.deps=Deps(deep_research_output={})
+    def chat(self, query:str):
+        result=self.agent.run_sync(query, deps=self.deps, message_history=self.memory.messages)
         self.memory.messages=result.all_messages()
-        return result.data
-    
-    def reset_memory(self):
-        """
-        Reset the memory of the agent
-        """
-        self.memory.messages=[]
-        self.deps.deep_research_output={}
+        return result.output
+

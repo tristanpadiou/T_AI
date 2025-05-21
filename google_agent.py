@@ -1,7 +1,7 @@
 from token_creator import get_creds
 get_creds()
-
-from gmail_agent import Gmail_agent
+from composio_langgraph import Action, ComposioToolSet, App
+from composio_tools_agent import Composio_agent
 from calendar_agent import Calendar_agent
 from maps_agent import Maps_agent
 from contacts_agent import Contacts_agent
@@ -162,18 +162,19 @@ manager_dict = manager_tools.model_dump()
 
 
 class Google_agent:
-    def __init__(self,llm: any, api_keys:dict):
+    def __init__(self,llms: dict, api_keys:dict):
         """
         Args:
             llm (any): The language model to use using langchain_framework
             api_keys (dict): The API keys to use
         """
-        self.agent=self._setup(llm,api_keys)
-        self.mail_agent=Gmail_agent(llm, api_keys['creds'])
-        self.calendar_agent=Calendar_agent(llm, api_keys['creds'])
-        self.maps_agent=Maps_agent(llm, api_keys['creds'])
-        self.tasks_agent=Tasks_agent(llm, api_keys['creds'])
-        self.contacts_agent=Contacts_agent(llm, api_keys['creds'])
+        self.tools=ComposioToolSet(api_key=api_keys['composio_key'])
+        self.agent=self._setup(llms['langchain_llm'],api_keys)
+        self.mail_agent=Composio_agent(self.tools.get_tools(apps=[App.GMAIL]),llms['openai_llm'])
+        self.calendar_agent=Calendar_agent(llms['langchain_llm'], api_keys['creds'])
+        self.maps_agent=Maps_agent(llms['langchain_llm'], api_keys['creds'])
+        self.tasks_agent=Tasks_agent(llms['langchain_llm'], api_keys['creds'])
+        self.contacts_agent=Contacts_agent(llms['langchain_llm'], api_keys['creds'])
 
 
     def _setup(self,llm,api_keys):
@@ -387,7 +388,6 @@ class Google_agent:
             """Tool to use to answer any email related queries
             this tool can:
             show the inbox
-            get or read a specific mail's content to display
             
             create an email
             create a draft email
