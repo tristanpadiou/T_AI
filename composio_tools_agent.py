@@ -9,6 +9,7 @@ from langgraph.graph import MessagesState, StateGraph,END
 from langgraph.prebuilt import ToolNode
 from IPython.display import Image, display
 from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeStyles
+import json
 
 class Composio_agent:
     def __init__(self,tools:list,llm:ChatOpenAI):
@@ -75,7 +76,9 @@ class Composio_agent:
             ]
         }
     )
-        return res
+    
+        return json.loads(res['messages'][-1].content)
+
 
     def display_graph(self):
         return display(

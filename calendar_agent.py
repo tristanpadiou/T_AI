@@ -180,8 +180,8 @@ class Calendar_agent:
             try:
                 event = self.service.events().insert(calendarId='primary', body=event).execute()
                 return {'node_massage':'Event Created'}
-            except: 
-                return {'node_message':'Failed to create event'}
+            except Exception as e:
+                return {'node_message':f'Failed to create event: {e}'}
             
         def quick_add_event_node(state:State):
     
@@ -217,8 +217,8 @@ class Calendar_agent:
                 calendarId='primary',
                 text=response.get('event_description')).execute()
                 return {'node_massage':'Event Created'}
-            except: 
-                return {'node_message':'Failed to create event'}
+            except Exception as e:
+                return {'node_message':f'Failed to create event: {e}'}
 
 
         graph_builder = StateGraph(State)

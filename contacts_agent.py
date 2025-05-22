@@ -148,8 +148,8 @@ class Contacts_agent:
                     contact[name]={'resourcename':resourcename,
                                     'etag':etag}
                 return {'contacts':contact}
-            except:
-                return {'node_message':'failed'}
+            except Exception as e:
+                return {'node_message':f'failed: {e}'}
         
         def show_contacts_node(state:State):
             contacts=state['contacts']
@@ -185,11 +185,10 @@ class Contacts_agent:
                         results=self.service.people().get(resourceName=response['resourcename'],personFields='names,addresses,phoneNumbers,birthdays,biographies,emailAddresses').execute()
                         return {'contact_details':results,
                                 'node_message':results}
-                    except:
-                        return {'node_message':'failed'}
-            except:
-                        return {'node_message':'failed'}
-                
+                    except Exception as e:
+                        return {'node_message':f'failed: {e}'}
+            except Exception as e:
+                return {'node_message':f'failed: {e}'}
         def update_contact_node(state: State):
                            
                     
@@ -278,11 +277,10 @@ class Contacts_agent:
                         resourcename=response.get('resourcename')
                         results=(self.service.people().updateContact(resourceName=response['body'].get('resourcename'), body=response['body'], updatePersonFields=response['updatePersonFields']).execute())
                         return {'node_message':results}
-                    except:
-                        return {'node_message':'failed'} 
-            except:
-                        return {'node_message':'failed'}
-         
+                    except Exception as e:
+                        return {'node_message':f'failed: {e}'} 
+            except Exception as e:
+                return {'node_message':f'failed: {e}'}
                 
         def create_contact_node(state:State):
   
@@ -309,8 +307,8 @@ class Contacts_agent:
                     response=retry_parser.parse_with_prompt(response.content, prompt_value)  
                     results=self.service.people().createContact(body=response).execute()
                     return {'node_message':results}
-                except:
-                    return {'node_message':'failed'}
+                except Exception as e:
+                    return {'node_message':f'failed: {e}'}
             
         def delete_contact_node(state:State):
             class Resourcename_shema(BaseModel):
@@ -341,10 +339,10 @@ class Contacts_agent:
                 
                         self.service.people().deleteContact(resourceName=response['resourcename']).execute()
                         return  {'node_message':'contact deleted'}
-                    except:
-                        return {'node_message':'failed'}
-            except:
-                        return {'node_message':'failed'}
+                    except Exception as e:
+                        return {'node_message':f'failed: {e}'}
+            except Exception as e:
+                return {'node_message':f'failed: {e}'}
         
         def agent_node(state: State):
             class Form(BaseModel):
