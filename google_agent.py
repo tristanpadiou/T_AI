@@ -39,7 +39,9 @@ class State:
     node_query: str
     route:str
     n_retries:int
-
+    planning_notes:dict
+    #action exclusive outputs
+    mail_inbox:dict
 class Google_agent:
     def __init__(self,llms: dict, api_keys:dict):
         """
@@ -56,6 +58,7 @@ class Google_agent:
             'Tasks Manager':{tool.name:tool for tool in self.tools.get_action_schemas(apps=[App.GOOGLETASKS])},
             'Google images tool':{'search_images':'search for images'},
             'Get current time':{'get_current_time':'get the current time'},
+            'planning_improve_node':{'planning_improvement':'notes to improve the planning or use of a tool based on a prompt'},
             'list_tools':{'list_tools':'list the tools available'}
         }
         # tool_functions is a dictionary of the tool names and the actions they can perform
@@ -64,6 +67,7 @@ class Google_agent:
             'Maps Manager':{tool.name:tool.description for tool in self.tools.get_tools(apps=[App.GOOGLE_MAPS])},
             'Tasks Manager':{tool.name:tool.description for tool in self.tools.get_tools(apps=[App.GOOGLETASKS])},
             'Google images tool':{'search_images':'search for images'},
+            'planning_improve_node':{'planning_improvement':'notes to improve the planning or use of a tool based on a prompt'},
             'Get current time':{'get_current_time':'get the current time'},
             'list_tools':{'list_tools':'list the tools available'}
         }
@@ -90,9 +94,9 @@ class Google_agent:
                 
 
                 
-                plan_agent=Agent(self.llm,output_type=plan_shema, instructions=f'based on this query: {ctx.state.query} generate a plan using those manager tools: {self.tool_functions} to get the necessary info and to complete the query, the plan cannot contain more than 10 tasks')
+                plan_agent=Agent(self.llm,output_type=plan_shema, instructions=f'based on a query, generate a plan using those manager tools: {self.tool_functions} to get the necessary info and to complete the query, use the planning notes to improve the planning, if any, the plan cannot contain more than 10 tasks')
                 try:
-                    response=plan_agent.run_sync(ctx.state.query) 
+                    response=plan_agent.run_sync(f'query:{ctx.state.query}, planning_notes:{ctx.state.planning_notes}') 
                     ctx.state.plan=response.output.tasks
                     return agent_node()
                           
@@ -105,7 +109,7 @@ class Google_agent:
         class agent_node(BaseNode[State]):
             llm=llms['pydantic_llm']
             tool_shemas=self.tool_shemas
-            async def run(self,ctx: GraphRunContext[State])-> get_current_time_node | maps_manager_node | tasks_manager_node | mail_manager_node | google_image_search_node | list_tools_node | End:
+            async def run(self,ctx: GraphRunContext[State])-> get_current_time_node | maps_manager_node | tasks_manager_node | mail_manager_node | google_image_search_node | list_tools_node | planning_improve_node | End:
                 
                 class task_route(BaseModel):
                     query: str = Field(description='the query to be passed to one of the manager tool nodes')
@@ -120,7 +124,7 @@ class Google_agent:
                     
                     if ctx.state.evaluator_message:
                         agent=Agent(self.llm, output_type=query_template, instructions=f'based on the evaluator message, update the query template, and generate a new query based on the task, the tool_shemas and the previous query_template and the previous node messages')
-                        response=agent.run_sync(f'task:{plan[0]}, evaluator_message:{ctx.state.evaluator_message}, previous_node_messages:{ctx.state.node_messages[-1]}, previous_query_template:{ctx.state.node_query_template.get(plan[0].manager_tool).get(plan[0].action).get('query')}, tool_shemas:{self.tool_shemas[plan[0].manager_tool][plan[0].action]}') 
+                        response=agent.run_sync(f'task:{plan[0]}, evaluator_message:{ctx.state.evaluator_message}, previous_node_messages:{ctx.state.node_messages}, previous_query_template:{ctx.state.node_query_template.get(plan[0].manager_tool).get(plan[0].action).get('query')}, tool_shemas:{self.tool_shemas[plan[0].manager_tool][plan[0].action]}') 
                         # check if the action is already in the node_query for the manager tool
                         if ctx.state.node_query_template[plan[0].manager_tool].get(plan[0].action):
                             ctx.state.node_query_template[plan[0].manager_tool][plan[0].action]={'query':response.output.query_template}
@@ -159,6 +163,8 @@ class Google_agent:
                         return mail_manager_node()
                     elif ctx.state.route=='Google images tool':
                         return google_image_search_node()
+                    elif ctx.state.route=='planning_improve_node':
+                        return planning_improve_node()
                     elif ctx.state.route=='list_tools':
                         return list_tools_node()
                     else:
@@ -213,7 +219,7 @@ class Google_agent:
                 """
                 # Define the API endpoint for Google Custom Search
                 url = "https://www.googleapis.com/customsearch/v1"
-                query=ctx.state.node_query[ctx.state.route]['query']
+                query=ctx.state.node_query
 
                 params = {
                     "q": query,
@@ -236,7 +242,18 @@ class Google_agent:
                 else:
                     ctx.state.node_messages.append({'google_image_search':'failed to find image'})
                     return evaluator_node()
-
+        @dataclass
+        class planning_improve_node(BaseNode[State]):
+            llm=llms['pydantic_llm']
+            tool_functions=self.tool_functions
+            async def run(self,ctx: GraphRunContext[State])->End:
+                class planning_improve_shema(BaseModel):
+                    planning_improvement: str = Field(description='the planning improvement notes')
+                agent=Agent(self.llm,output_type=planning_improve_shema, instructions=f'based on the dict of tools and the prompt, create a notes to improve the planning or use of a tool for the planner node')
+                response=agent.run_sync(f'prompt:{ctx.state.query}, tool_functions:{self.tool_functions}')
+                ctx.state.planning_notes[ctx.state.plan[0].action]=response.output.planning_improvement
+                return End(ctx.state)
+                
 
         @dataclass
         class tasks_manager_node(BaseNode[State]):
@@ -253,7 +270,7 @@ class Google_agent:
             tasks_agent=self.tasks_agent
             async def run(self,ctx: GraphRunContext[State])->evaluator_node:
 
-                response=self.tasks_agent.chat(ctx.state.node_query[ctx.state.route]['query'])
+                response=self.tasks_agent.chat(ctx.state.node_query)
                 # return response
                 ctx.state.node_messages.append({'tasks_manager':response})
                 return evaluator_node()
@@ -270,7 +287,7 @@ class Google_agent:
             """
             maps_agent=self.maps_agent
             async def run(self,ctx: GraphRunContext[State])->evaluator_node:
-                response=self.maps_agent.chat(ctx.state.node_query[ctx.state.route]['query'])
+                response=self.maps_agent.chat(ctx.state.node_query)
                 # return response
                 ctx.state.node_messages.append({'maps_manager':response})
                 return evaluator_node()
@@ -290,11 +307,16 @@ class Google_agent:
 
             args: query - pass the email related queries directly here
             """
+            
             mail_agent=self.mail_agent
             async def run(self,ctx: GraphRunContext[State])->evaluator_node:
-                response=self.mail_agent.chat(ctx.state.node_query[ctx.state.route]['query'] + f'if the query is about sending an email, do not send any attachements, just send the url in the body')
+                
+                response=self.mail_agent.chat(ctx.state.node_query + f'if the query is about sending an email, do not send any attachements, just send the url in the body')
                 # return response
                 ctx.state.node_messages.append({'mail_manager':response})
+                #save the inbox in the state for future use
+                if ctx.state.plan[0].action=='GMAIL_FETCH_EMAILS':
+                    ctx.state.mail_inbox=response
                 return evaluator_node()
 
 
@@ -317,8 +339,8 @@ class Google_agent:
                 ctx.state.node_messages.append({'list_tools':self.tools})
                 return End(ctx.state)
 
-        self.graph=Graph(nodes=[planner_node, agent_node, evaluator_node, google_image_search_node, tasks_manager_node, maps_manager_node, mail_manager_node, get_current_time_node, list_tools_node])
-        self.state=State(node_messages=[], evaluator_message='', query='', plan=[], node_query_template={}, node_query='', route='', n_retries=0)
+        self.graph=Graph(nodes=[planner_node, agent_node, evaluator_node, google_image_search_node, tasks_manager_node, maps_manager_node, mail_manager_node, get_current_time_node, list_tools_node, planning_improve_node])
+        self.state=State(node_messages=[], evaluator_message='', query='', plan=[], node_query_template={}, node_query='', route='', n_retries=0, planning_notes='')
         self.planner_node=planner_node()
         
     def chat(self,query:str):

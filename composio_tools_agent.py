@@ -76,8 +76,13 @@ class Composio_agent:
             ]
         }
     )
-    
-        return json.loads(res['messages'][-1].content)
+        try:
+            return json.loads(res['messages'][-1].content)
+        except:
+            try:
+                return res['messages'][-1].content
+            except:
+                return res
 
 
     def display_graph(self):
