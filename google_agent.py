@@ -195,14 +195,14 @@ class Google_agent:
                     ctx.state.plan=[]
                     ctx.state.evaluator_message=f'task: {ctx.state.node_query[ctx.state.route]}, failed, reason: {response.output.reason}'
                     ctx.state.n_retries+=1
+                    if len(ctx.state.node_messages)>10:
+                        del ctx.state.node_messages[0]
                     if ctx.state.n_retries>2:
-                        if len(ctx.state.node_messages)>10:
-                            del ctx.state.node_messages[0]
+                        ctx.state.node_messages.append({'google_agent':'failed to complete the task'})
                         return End(ctx.state)
                     else:
                         return agent_node()
                 else:
-                    
                     ctx.state.n_retries=0
                     ctx.state.evaluator_message=''
                     del ctx.state.plan[0]
@@ -340,7 +340,7 @@ class Google_agent:
                 return End(ctx.state)
 
         self.graph=Graph(nodes=[planner_node, agent_node, evaluator_node, google_image_search_node, tasks_manager_node, maps_manager_node, mail_manager_node, get_current_time_node, list_tools_node, planning_improve_node])
-        self.state=State(node_messages=[], evaluator_message='', query='', plan=[], node_query_template={}, node_query='', route='', n_retries=0, planning_notes='')
+        self.state=State(node_messages=[], evaluator_message='', query='', plan=[], node_query_template={}, node_query='', route='', n_retries=0, planning_notes='', mail_inbox={})
         self.planner_node=planner_node()
         
     def chat(self,query:str):
