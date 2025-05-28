@@ -8,8 +8,8 @@ from typing import  List, Dict, Optional, Any
 from tavily import TavilyClient
 from IPython.display import Image, display
 import time
-import nest_asyncio
-nest_asyncio.apply()
+# import nest_asyncio
+# nest_asyncio.apply()
 # load_dotenv()
 # google_api_key=os.getenv('google_api_key')
 # tavily_key=os.getenv('tavily_key')
