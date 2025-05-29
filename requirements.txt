@@ -1,0 +1,17 @@
+composio_langgraph==0.7.15
+fastapi==0.115.12
+ipython==8.32.0
+langchain==0.3.19
+langchain_core==0.3.51
+langchain_google_genai==2.0.11
+langchain_openai==0.3.12
+langgraph==0.2.76
+logfire==3.16.1
+nest_asyncio==1.6.0
+pydantic==2.11.2
+pydantic_ai==0.2.11
+pydantic_graph==0.2.11
+python-dotenv==1.1.0
+requests==2.32.3
+tavily_python==0.5.1
+uvicorn==0.34.0
