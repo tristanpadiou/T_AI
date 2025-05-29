@@ -3,11 +3,11 @@ from fastapi import FastAPI, HTTPException, Form, File, UploadFile
 from pydantic import BaseModel
 from typing import Dict, Optional, List, Union
 from dotenv import load_dotenv
+from pydantic_ai import BinaryContent
 import os
 import requests
 import hashlib
 load_dotenv()
-
 
 import uvicorn
 import time
@@ -21,11 +21,6 @@ logfire.instrument_fastapi(app)
 # Initialize Cortana agent instance
 
 startup_time = time.time()
-
-class BinaryContent:
-    def __init__(self, data: bytes, media_type: str):
-        self.data = data
-        self.media_type = media_type
 
 class TTSResponse(BaseModel):
     text: str
@@ -114,12 +109,13 @@ async def chat(
         inputs = [query]
         
         # Add any uploaded files as BinaryContent objects
-        for file_type, file in [("image", image), ("voice", voice), ("document", document)]:
-            if file is not None:
-                contents = await file.read()
-                binary_content = BinaryContent(data=contents, media_type=file.content_type)
-                inputs.append(binary_content)
-                await file.close()
+        for file_type, file_obj in [("image", image), ("voice", voice), ("document", document)]:
+            if file_obj is not None:
+                contents = await file_obj.read()
+                binary_content = BinaryContent(data=contents, media_type=file_obj.content_type)
+                
+                inputs = [query, binary_content]
+                await file_obj.close()
 
         api_keys = {
             "google_api_key": google_api_key,
