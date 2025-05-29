@@ -61,14 +61,32 @@ class Google_agent:
         }
         # tool_functions is a dictionary of the tool names and the actions they can perform
         self.tool_functions={
-            'Mail Manager':{tool.name:tool.description for tool in self.tools.get_tools(apps=[App.GMAIL])},
-            'Maps Manager':{tool.name:tool.description for tool in self.tools.get_tools(apps=[App.GOOGLE_MAPS])},
-            'Tasks Manager':{tool.name:tool.description for tool in self.tools.get_tools(apps=[App.GOOGLETASKS])},
-            'Google images tool':{'search_images':'search for images'},
-            'improve_planning_tool':{'planning_improvement':'notes to improve the planning or use of a tool based on a prompt'},
-            'Get current time':{'get_current_time':'get the current time'},
-            'list_tools':{'list_tools':'list the tools available'},
-            'query_template_editor':{'query_template_editor':'edit the query template to fulfill the requirements of the tool'}
+            'managers':{
+                'Mail Manager':{
+                    'actions':{tool.name:{'description':tool.description} for tool in self.tools.get_tools(apps=[App.GMAIL])}
+                },
+                'Maps Manager':{
+                    'actions':{tool.name:{'description':tool.description} for tool in self.tools.get_tools(apps=[App.GOOGLE_MAPS])}
+                },
+                'Tasks Manager':{
+                    'actions':{tool.name:{'description':tool.description} for tool in self.tools.get_tools(apps=[App.GOOGLETASKS])}
+                },
+                'Google images tool':{
+                    'actions':{'search_images':{'description':'search for images'}}
+                },
+                'improve_planning_tool':{
+                    'actions':{'planning_improvement':{'description':'notes to improve the planning or use of a tool based on a prompt'}}
+                },
+                'Get current time':{
+                    'actions':{'get_current_time':{'description':'get the current time'}}
+                },
+                'list_tools':{
+                    'actions':{'list_tools':{'description':'list the tools available'}}
+                },
+                'query_template_editor':{
+                    'actions':{'query_template_editor':{'description':'edit the query template to fulfill the requirements of the tool'}}
+                }
+            }
         }
         # agents are the composio agents for the tools
         self.mail_agent=Composio_agent(self.tools.get_tools(apps=[App.GMAIL]),llms['openai_llm'])
@@ -87,7 +105,7 @@ class Google_agent:
                 class task_shema(BaseModel):
                     task: str = Field(description='description of the task')
                     manager_tool: str = Field(description= 'the name of the manager tool to use')
-                    action: str = Field(description=' the action that the manager tool must take')
+                    action: str = Field(description=' the action that the manager tool must take from the actions of the manager tool')
                 class plan_shema(BaseModel):
                     tasks: List[task_shema] = Field(description='the list of tasks that the agent need to complete to succesfully complete the query')
                 
@@ -204,7 +222,7 @@ class Google_agent:
                     if len(ctx.state.node_messages)>10:
                         del ctx.state.node_messages[0]
                     if ctx.state.n_retries>2:
-                        ctx.state.node_messages.append({'google_agent':'failed to complete the task'})
+                        ctx.state.node_messages.append({'google_agent':'failed to complete the task, reason: '+response.output.reason})
                         return End(ctx.state)
                     else:
                         return agent_node()

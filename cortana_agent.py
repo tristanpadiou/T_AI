@@ -86,7 +86,6 @@ class Cortana_agent:
 
            
             res=google_agent.chat(query)
-            ctx.deps.google_agent_output['node_messages']=res.node_messages
             if google_agent.state.mail_inbox:
                 ctx.deps.mail_inbox=google_agent.state.mail_inbox
             ctx.deps.google_agent_output=google_agent.state

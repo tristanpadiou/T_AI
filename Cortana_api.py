@@ -26,7 +26,7 @@ app = FastAPI(
     
     **GET Requests:**
     - `/health` - Check API health status and uptime
-    - `/docs` - Get comprehensive API documentation
+    - `/api-docs` - Get comprehensive API documentation
     
     **POST Requests:**
     - `/chat` - Main chat endpoint with multi-modal support (text, image, voice, document uploads)
@@ -42,12 +42,14 @@ app = FastAPI(
     - Memory management and conversation reset
     - Health monitoring and uptime tracking
     """,
-    version="0.1.0"
+    version="0.1.0",
+    docs_url=None,  # Disable built-in docs
+    redoc_url=None  # Disable redoc as well
 )
 logfire.configure(token=os.getenv('logfire_token'))
-logfire.instrument_fastapi(app)
+logfire.instrument_pydantic_ai()
 # Initialize Cortana agent instance
-
+logfire.instrument_fastapi(app)
 startup_time = time.time()
 
 class TTSResponse(BaseModel):
@@ -165,7 +167,7 @@ async def chat(
         audio_url = None
         if include_audio and hf_token:
             try:
-                audio_url = get_tts_audio(response.ui_version, hf_token)
+                audio_url = get_tts_audio(response.voice_version, hf_token)
             except Exception as e:
                 print(f"TTS generation failed: {str(e)}")
         
@@ -200,88 +202,354 @@ async def text_to_speech(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/docs", response_model=APIDocumentation)
-async def get_documentation():
+@app.get("/api-docs")
+async def get_markdown_documentation():
     """
-    Returns comprehensive documentation for all API endpoints
+    Returns comprehensive documentation for all API endpoints in markdown format
     """
-    return APIDocumentation(
-        name="Cortana API",
-        version="0.1.0",
-        description="API for interacting with Cortana AI Assistant, including chat, text-to-speech, and file processing capabilities",
-        endpoints=[
-            EndpointInfo(
-                path="/chat",
-                method="POST",
-                description="Main chat endpoint that processes text queries and optional file uploads. Can include text-to-speech conversion.",
-                parameters=[
-                    {"name": "query", "type": "string", "required": "Yes", "description": "The text query to process"},
-                    {"name": "google_api_key", "type": "string", "required": "Yes", "description": "Google API key for search functionality"},
-                    {"name": "tavily_key", "type": "string", "required": "Yes", "description": "Tavily API key for search functionality"},
-                    {"name": "pse", "type": "string", "required": "No", "description": "Personal search engine identifier"},
-                    {"name": "openai_api_key", "type": "string", "required": "No", "description": "OpenAI API key for language model"},
-                    {"name": "composio_key", "type": "string", "required": "No", "description": "Composio API key"},
-                    {"name": "hf_token", "type": "string", "required": "No", "description": "HuggingFace token for text-to-speech"},
-                    {"name": "include_audio", "type": "boolean", "required": "No", "description": "Whether to include audio in response"},
-                    {"name": "image", "type": "file", "required": "No", "description": "Optional image file upload"},
-                    {"name": "voice", "type": "file", "required": "No", "description": "Optional voice file upload"},
-                    {"name": "document", "type": "file", "required": "No", "description": "Optional document file upload"}
-                ],
-                example_request={
-                    "query": "What's the weather like?",
-                    "google_api_key": "your_google_api_key",
-                    "tavily_key": "your_tavily_key",
-                    "include_audio": "true",
-                    "hf_token": "your_hf_token"
-                },
-                example_response={
-                    "response": "The weather is currently sunny with a temperature of 72°F.",
-                    "audio_url": "https://huggingface.co/audio/..."
-                }
-            ),
-            EndpointInfo(
-                path="/text-to-speech",
-                method="POST",
-                description="Convert text to speech using HuggingFace's TTS API",
-                parameters=[
-                    {"name": "text", "type": "string", "required": "Yes", "description": "Text to convert to speech"},
-                    {"name": "hf_token", "type": "string", "required": "Yes", "description": "HuggingFace API token"}
-                ],
-                example_request={
-                    "text": "Hello, this is a test",
-                    "hf_token": "your_hf_token"
-                },
-                example_response={
-                    "audio_url": "https://huggingface.co/audio/..."
-                }
-            ),
-            EndpointInfo(
-                path="/reset",
-                method="POST",
-                description="Reset Cortana's memory and conversation history",
-                parameters=[],
-                example_request={},
-                example_response={
-                    "status": "success",
-                    "message": "Cortana memory reset successfully"
-                }
-            ),
-            EndpointInfo(
-                path="/health",
-                method="GET",
-                description="Check API health status and uptime",
-                parameters=[],
-                example_request={},
-                example_response={
-                    "status": "healthy",
-                    "uptime": 3600.5,
-                    "version": "0.1.0",
-                    "service": "Cortana API"
-                }
-            )
-        ]
-    )
+  
+    return {"markdown": """# Cortana API Documentation
 
+**Version:** 0.1.0
+
+## Description
+API for interacting with Cortana AI Assistant, including chat, text-to-speech, and file processing capabilities.
+
+---
+
+## Endpoints
+
+### POST `/chat`
+**Description:** Main chat endpoint that processes text queries and optional file uploads. Can include text-to-speech conversion.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| query | string | Yes | The text query to process |
+| google_api_key | string | Yes | Google API key for search functionality |
+| tavily_key | string | Yes | Tavily API key for search functionality |
+| pse | string | No | Personal search engine identifier |
+| openai_api_key | string | No | OpenAI API key for language model |
+| composio_key | string | No | Composio API key |
+| hf_token | string | No | HuggingFace token for text-to-speech |
+| include_audio | boolean | No | Whether to include audio in response |
+| image | file | No | Optional image file upload |
+| voice | file | No | Optional voice file upload |
+| document | file | No | Optional document file upload |
+
+**Example Request:**
+```json
+{
+    "query": "What's the weather like?",
+    "google_api_key": "your_google_api_key",
+    "tavily_key": "your_tavily_key",
+    "include_audio": "true",
+    "hf_token": "your_hf_token"
+}
+```
+
+**Example Response:**
+```json
+{
+    "response": "The weather is currently sunny with a temperature of 72°F.",
+    "audio_url": "https://huggingface.co/audio/..."
+}
+```
+
+---
+
+### POST `/text-to-speech`
+**Description:** Convert text to speech using HuggingFace's TTS API
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| text | string | Yes | Text to convert to speech |
+| hf_token | string | Yes | HuggingFace API token |
+
+**Example Request:**
+```json
+{
+    "text": "Hello, this is a test",
+    "hf_token": "your_hf_token"
+}
+```
+
+**Example Response:**
+```json
+{
+    "audio_url": "https://huggingface.co/audio/..."
+}
+```
+
+---
+
+### POST `/reset`
+**Description:** Reset Cortana's memory and conversation history
+
+**Parameters:** None
+
+**Example Request:**
+```json
+
+```
+
+**Example Response:**
+```json
+{
+    "status": "success",
+    "message": "Cortana memory reset successfully"
+}
+```
+
+---
+
+### GET `/health`
+**Description:** Check API health status and uptime
+
+**Parameters:** None
+
+**Example Request:** No body required
+
+**Example Response:**
+```json
+{
+    "status": "healthy",
+    "uptime": 3600.5,
+    "version": "0.1.0",
+    "service": "Cortana API"
+}
+```
+
+---
+
+### GET `/docs`
+**Description:** Get comprehensive API documentation in JSON format
+
+**Parameters:** None
+
+**Example Request:** No body required
+
+**Example Response:** Returns structured JSON documentation
+
+---
+
+### GET `/docs/markdown`
+**Description:** Get comprehensive API documentation in markdown format
+
+**Parameters:** None
+
+**Example Request:** No body required
+
+**Example Response:** Returns this markdown documentation
+
+---
+
+## Features
+- Multi-modal input support (text, images, voice, documents)
+- Text-to-speech conversion
+- Web search integration via Google and Tavily
+- OpenAI GPT integration
+- Composio tools integration
+- Memory management and conversation reset
+- Health monitoring and uptime tracking
+
+## Usage Notes
+- All file uploads should use multipart/form-data encoding
+- API keys are required for most functionality
+- The chat endpoint supports multiple input types simultaneously
+- Audio responses require a valid HuggingFace token
+"""}
+
+@app.get("/docs")
+async def get_docs():
+    """
+    Returns comprehensive documentation for all API endpoints in JSON format
+    """
+    return {
+        "name": "Cortana API",
+        "version": "0.1.0", 
+        "description": "API for interacting with Cortana AI Assistant with multi-modal capabilities",
+        "endpoints": [
+            {
+                "path": "/chat",
+                "method": "POST",
+                "description": "Main chat endpoint with multi-modal support for text, images, voice, and documents",
+                "content_type": "multipart/form-data",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "type": "string",
+                        "required": True,
+                        "description": "The text query to process"
+                    },
+                    {
+                        "name": "google_api_key", 
+                        "type": "string",
+                        "required": True,
+                        "description": "Google API key for search functionality"
+                    },
+                    {
+                        "name": "tavily_key",
+                        "type": "string", 
+                        "required": True,
+                        "description": "Tavily API key for search functionality"
+                    },
+                    {
+                        "name": "pse",
+                        "type": "string",
+                        "required": False,
+                        "description": "Personal search engine identifier (optional)"
+                    },
+                    {
+                        "name": "openai_api_key",
+                        "type": "string",
+                        "required": False,
+                        "description": "OpenAI API key for language model (optional)"
+                    },
+                    {
+                        "name": "composio_key", 
+                        "type": "string",
+                        "required": False,
+                        "description": "Composio API key for tools integration (optional)"
+                    },
+                    {
+                        "name": "hf_token",
+                        "type": "string",
+                        "required": False,
+                        "description": "HuggingFace token for text-to-speech functionality (optional)"
+                    },
+                    {
+                        "name": "include_audio",
+                        "type": "boolean",
+                        "required": False,
+                        "default": False,
+                        "description": "Whether to include audio response (requires hf_token)"
+                    },
+                    {
+                        "name": "image",
+                        "type": "file",
+                        "required": False,
+                        "description": "Optional image file upload for visual analysis"
+                    },
+                    {
+                        "name": "voice", 
+                        "type": "file",
+                        "required": False,
+                        "description": "Optional voice/audio file upload for audio processing"
+                    },
+                    {
+                        "name": "document",
+                        "type": "file", 
+                        "required": False,
+                        "description": "Optional document file upload for document analysis"
+                    }
+                ],
+                "response": {
+                    "response": "string - The AI assistant's response",
+                    "audio_url": "string - URL to generated audio (if include_audio=true and hf_token provided)"
+                }
+            },
+            {
+                "path": "/text-to-speech", 
+                "method": "POST",
+                "description": "Convert text to speech using HuggingFace TTS API",
+                "content_type": "multipart/form-data",
+                "parameters": [
+                    {
+                        "name": "text",
+                        "type": "string",
+                        "required": True,
+                        "description": "Text to convert to speech"
+                    },
+                    {
+                        "name": "hf_token",
+                        "type": "string", 
+                        "required": True,
+                        "description": "HuggingFace API token"
+                    }
+                ],
+                "response": {
+                    "audio_url": "string - URL to the generated audio file"
+                }
+            },
+            {
+                "path": "/reset",
+                "method": "POST", 
+                "description": "Reset Cortana's memory and conversation history",
+                "parameters": [],
+                "response": {
+                    "status": "string - success/error status",
+                    "message": "string - confirmation message"
+                }
+            },
+            {
+                "path": "/health",
+                "method": "GET",
+                "description": "Check API health status and uptime", 
+                "parameters": [],
+                "response": {
+                    "status": "string - health status",
+                    "uptime": "number - seconds since startup",
+                    "version": "string - API version",
+                    "service": "string - service name"
+                }
+            },
+            {
+                "path": "/docs",
+                "method": "GET",
+                "description": "Get comprehensive API documentation in JSON format",
+                "parameters": [],
+                "response": "object - This documentation structure"
+            },
+            {
+                "path": "/api-docs", 
+                "method": "GET",
+                "description": "Get comprehensive API documentation in markdown format",
+                "parameters": [],
+                "response": {
+                    "markdown": "string - Full API documentation in markdown format"
+                }
+            }
+        ],
+        "usage_notes": [
+            "All file uploads must use multipart/form-data encoding",
+            "API keys are required for most functionality", 
+            "The chat endpoint supports multiple input types simultaneously",
+            "Audio responses require a valid HuggingFace token",
+            "File uploads (image, voice, document) are optional and can be used individually or together",
+            "Only one file of each type (image, voice, document) can be uploaded per request"
+        ]
+    }
+
+@app.get("/")
+async def root():
+    return {"message": """ 
+     ## Cortana AI Assistant API
+    
+    A comprehensive API for interacting with Cortana AI Assistant with multi-modal capabilities.
+    
+    ### Available Endpoints:
+    
+    **GET Requests:**
+    - `/health` - Check API health status and uptime
+    - `/api-docs` - Get comprehensive API documentation
+    - `/docs` - Get comprehensive API documentation in JSON format
+    
+    **POST Requests:**
+    - `/chat` - Main chat endpoint with multi-modal support (text, image, voice, document uploads)
+    - `/text-to-speech` - Convert text to speech using HuggingFace TTS
+    - `/reset` - Reset Cortana's memory and conversation history
+    
+    ### Features:
+    - Multi-modal input support (text, images, voice, documents)
+    - Text-to-speech conversion
+    - Web search integration via Google and Tavily
+    - OpenAI GPT integration
+    - Composio tools integration
+    - Memory management and conversation reset
+    - Health monitoring and uptime tracking
+    """}
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
