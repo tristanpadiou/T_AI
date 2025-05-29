@@ -15,7 +15,35 @@ import json
 
 import logfire
 
-app = FastAPI(title="Cortana API", description="API for interacting with Cortana AI Assistant")
+app = FastAPI(
+    title="Cortana API", 
+    description="""
+    ## Cortana AI Assistant API
+    
+    A comprehensive API for interacting with Cortana AI Assistant with multi-modal capabilities.
+    
+    ### Available Endpoints:
+    
+    **GET Requests:**
+    - `/health` - Check API health status and uptime
+    - `/docs` - Get comprehensive API documentation
+    
+    **POST Requests:**
+    - `/chat` - Main chat endpoint with multi-modal support (text, image, voice, document uploads)
+    - `/text-to-speech` - Convert text to speech using HuggingFace TTS
+    - `/reset` - Reset Cortana's memory and conversation history
+    
+    ### Features:
+    - Multi-modal input support (text, images, voice, documents)
+    - Text-to-speech conversion
+    - Web search integration via Google and Tavily
+    - OpenAI GPT integration
+    - Composio tools integration
+    - Memory management and conversation reset
+    - Health monitoring and uptime tracking
+    """,
+    version="0.1.0"
+)
 logfire.configure(token=os.getenv('logfire_token'))
 logfire.instrument_fastapi(app)
 # Initialize Cortana agent instance
