@@ -21,8 +21,6 @@ from langchain_openai import ChatOpenAI
 class Api_keys:
     api_keys: dict
 
-
-
 @dataclass
 class Message_state:
     messages: list[ModelMessage]

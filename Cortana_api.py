@@ -46,7 +46,7 @@ app = FastAPI(
     docs_url=None,  # Disable built-in docs
     redoc_url=None  # Disable redoc as well
 )
-logfire.configure(token=os.getenv('logfire_token'))
+logfire.configure(token=os.getenv('cortana_api_logfire_token'))
 logfire.instrument_pydantic_ai()
 # Initialize Cortana agent instance
 logfire.instrument_fastapi(app)
@@ -208,7 +208,7 @@ async def get_markdown_documentation():
     Returns comprehensive documentation for all API endpoints in markdown format
     """
   
-    return {"markdown": """# Cortana API Documentation
+    return """# Cortana API Documentation
 
 **Version:** 0.1.0
 
@@ -359,7 +359,7 @@ API for interacting with Cortana AI Assistant, including chat, text-to-speech, a
 - API keys are required for most functionality
 - The chat endpoint supports multiple input types simultaneously
 - Audio responses require a valid HuggingFace token
-"""}
+"""
 
 @app.get("/docs")
 async def get_docs():
@@ -524,7 +524,7 @@ async def get_docs():
 
 @app.get("/")
 async def root():
-    return {"message": """ 
+    return  """ 
      ## Cortana AI Assistant API
     
     A comprehensive API for interacting with Cortana AI Assistant with multi-modal capabilities.
@@ -549,7 +549,7 @@ async def root():
     - Composio tools integration
     - Memory management and conversation reset
     - Health monitoring and uptime tracking
-    """}
+    """
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
