@@ -21,6 +21,7 @@ from langchain_openai import ChatOpenAI
 class Api_keys:
     api_keys: dict
 
+
 @dataclass
 class Message_state:
     messages: list[ModelMessage]
@@ -64,8 +65,8 @@ class Cortana_agent:
             - Manage Google Maps
             - get contact list
             - List available tools
-            - Improve planning based on user feedback
-            - Improve its query based on user feedback
+            - Improve planning based on user feedback with planning notes
+            - Improve its query based on user feedback with query notes
 
             ## Parameters
             - `query` (str): A complete query string describing the desired Google agent actions
