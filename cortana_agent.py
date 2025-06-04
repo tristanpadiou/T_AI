@@ -6,7 +6,7 @@ from pydantic_ai.common_tools.tavily import tavily_search_tool
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
-
+from composio_langgraph import ComposioToolSet
 from dataclasses import dataclass
 from datetime import datetime
 from pydantic import Field
@@ -38,8 +38,9 @@ class Cortana_agent:
         Args:
             
             api_keys (dict): The API keys to use as a dictionary
+            
         """
-
+        self.toolset=ComposioToolSet(api_key=api_keys['composio_key'])
         GEMINI_MODEL='gemini-2.0-flash'
         self.api_keys=Api_keys(api_keys=api_keys)
        
@@ -49,7 +50,7 @@ class Cortana_agent:
               'openai_llm':ChatOpenAI(api_key=self.api_keys.api_keys['openai_api_key'])}
         
         
-        google_agent=Google_agent(llms,self.api_keys.api_keys)
+        google_agent=Google_agent(llms,self.api_keys.api_keys, self.toolset)
         async def google_agent_tool(ctx:RunContext[Deps],query:str):
             """
             # Google Agent Interaction Function
