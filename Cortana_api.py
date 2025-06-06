@@ -1,5 +1,6 @@
 from cortana_agent import Cortana_agent
 from fastapi import FastAPI, HTTPException, Form, File, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Dict, Optional, List, Union
 from dotenv import load_dotenv
@@ -522,33 +523,54 @@ async def get_docs():
         ]
     }
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    return  """ 
-     ## Cortana AI Assistant API
-    
-    A comprehensive API for interacting with Cortana AI Assistant with multi-modal capabilities.
-    
-    ### Available Endpoints:
-    
-    **GET Requests:**
-    - `/health` - Check API health status and uptime
-    - `/api-docs` - Get comprehensive API documentation
-    - `/docs` - Get comprehensive API documentation in JSON format
-    
-    **POST Requests:**
-    - `/chat` - Main chat endpoint with multi-modal support (text, image, voice, document uploads)
-    - `/text-to-speech` - Convert text to speech using HuggingFace TTS
-    - `/reset` - Reset Cortana's memory and conversation history
-    
-    ### Features:
-    - Multi-modal input support (text, images, voice, documents)
-    - Text-to-speech conversion
-    - Web search integration via Google and Tavily
-    - OpenAI GPT integration
-    - Composio tools integration
-    - Memory management and conversation reset
-    - Health monitoring and uptime tracking
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Cortana AI Assistant API</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+            h2 { color: #2c3e50; }
+            h3 { color: #34495e; }
+            code { background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+            ul { line-height: 1.6; }
+        </style>
+    </head>
+    <body>
+        <h2>Cortana AI Assistant API</h2>
+        
+        <p>A comprehensive API for interacting with Cortana AI Assistant with multi-modal capabilities.</p>
+        
+        <h3>Available Endpoints:</h3>
+        
+        <p><strong>GET Requests:</strong></p>
+        <ul>
+            <li><code>/health</code> - Check API health status and uptime</li>
+            <li><code>/api-docs</code> - Get comprehensive API documentation</li>
+            <li><code>/docs</code> - Get comprehensive API documentation in JSON format</li>
+        </ul>
+        
+        <p><strong>POST Requests:</strong></p>
+        <ul>
+            <li><code>/chat</code> - Main chat endpoint with multi-modal support (text, image, voice, document uploads)</li>
+            <li><code>/text-to-speech</code> - Convert text to speech using HuggingFace TTS</li>
+            <li><code>/reset</code> - Reset Cortana's memory and conversation history</li>
+        </ul>
+        
+        <h3>Features:</h3>
+        <ul>
+            <li>Multi-modal input support (text, images, voice, documents)</li>
+            <li>Text-to-speech conversion</li>
+            <li>Web search integration via Google and Tavily</li>
+            <li>OpenAI GPT integration</li>
+            <li>Composio tools integration</li>
+            <li>Memory management and conversation reset</li>
+            <li>Health monitoring and uptime tracking</li>
+        </ul>
+    </body>
+    </html>
     """
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

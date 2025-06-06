@@ -30,7 +30,7 @@ class State:
    
     
     query: str
-    plan: List
+    plan: dict
     route:str
     #n_retries is the number of retries for a task
     n_retries:int
@@ -313,7 +313,7 @@ class Google_agent:
                 
                 response=self.mail_agent.chat(ctx.state.plan.task + f'if the query is about sending an email, do not send any attachements, just send the url in the body, if there is an error, explain it in detail')
                 #save the inbox in the state for future use
-                if ctx.state.plan[0].action=='GMAIL_FETCH_EMAILS':
+                if ctx.state.plan.action=='GMAIL_FETCH_EMAILS':
                     inbox=[]
                     for i in response['data']['messages']:
                         mail={'message_id':i.get('messageId'),'thread_id':i.get('threadId'),'subject':i.get('subject'),'sender':i.get('sender'),'date':i.get('messageTimestamp'),'snippet':i.get('preview'), 'messageText':i.get('messageText')}
