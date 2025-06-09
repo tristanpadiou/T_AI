@@ -63,7 +63,6 @@ class Cortana_agent:
             - Search for images
             - Manage user emails
             - Manage Google tasks
-            - Manage Google Maps
             - get contact list
             - List available tools
             - Improve planning based on user feedback with planning notes
@@ -94,7 +93,12 @@ class Cortana_agent:
             except:
                 return res
         
-
+        async def reset_google_agent_tool(ctx:RunContext[Deps]):
+            """
+            Use this tool to reset the google agent when it is not working as expected
+            """
+            google_agent.reset()
+            return 'Google agent has been reset'
 
         async def search_and_question_answering_tool(ctx: RunContext[Deps], query:str, route:str):
             """
@@ -140,8 +144,8 @@ class Cortana_agent:
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, search_and_question_answering_tool, get_current_time_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
-                          you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user")
+        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, search_and_question_answering_tool, get_current_time_tool, reset_google_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+                          you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(deep_research_output={}, google_agent_output={},mail_inbox={})
     
