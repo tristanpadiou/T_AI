@@ -1,6 +1,6 @@
 from __future__ import annotations
 from google_agent import Google_agent
-
+from Outlook_agent import outlook_agent
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.common_tools.tavily import tavily_search_tool
 from pydantic_ai.messages import ModelMessage
@@ -51,6 +51,7 @@ class Cortana_agent:
         
         
         google_agent=Google_agent(llms,self.api_keys.api_keys, self.toolset)
+        microsoft_outlook_agent=outlook_agent(llms,self.api_keys.api_keys, self.toolset)
         async def google_agent_tool(ctx:RunContext[Deps],query:str):
             """
             # Google Agent Interaction Function
@@ -101,6 +102,19 @@ class Cortana_agent:
             google_agent.reset()
             return 'Google agent has been reset'
 
+        async def outlook_agent_tool(ctx:RunContext[Deps], query:str):
+            """
+            Use this tool to interact with the outlook agent
+            """
+            res=microsoft_outlook_agent.chat(query)
+            if microsoft_outlook_agent.state.mail_inbox:
+                ctx.deps.mail_inbox=microsoft_outlook_agent.state.mail_inbox
+            ctx.deps.google_agent_output=microsoft_outlook_agent.state
+            ctx.deps.agents_output['outlook_agent_tool']=microsoft_outlook_agent.state.node_messages_dict
+            try:
+                return res.node_messages[-1]
+            except:
+                return res
 
         async def web_search_tool(ctx: RunContext[Deps], query:str):
             """
@@ -146,7 +160,7 @@ class Cortana_agent:
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, web_search_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, web_search_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})

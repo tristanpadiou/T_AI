@@ -41,12 +41,11 @@ class State:
     #action exclusive outputs
     #mail inbox is the inbox of the user
     mail_inbox:dict
-class Google_agent:
-    def __init__(self,llms: dict, api_keys:dict, toolset:ComposioToolSet):
+class outlook_agent:
+    def __init__(self,llms: dict, toolset:ComposioToolSet):
         """
         Args:
             llm (any): The language model to use using langchain_framework
-            api_keys (dict): The API keys to use
             toolset (ComposioToolSet): The toolset to use
         """
         # tools is the composio toolset
@@ -109,6 +108,7 @@ class Google_agent:
                 try:
                     response=plan_agent.run_sync(f'query:{ctx.state.query}, planning_notes:{ctx.state.planning_notes}, previous_node_messages:{ctx.state.node_messages_list}, previous_plan:{ctx.state.plan if ctx.state.plan else "no previous plan"}') 
                     ctx.state.plan=response.output
+                    ctx.state.node_messages_dict['agent_node']=response.output
                     return router_node()
                 #if the plan is not generated, return the state
                 except Exception as e:
@@ -134,6 +134,7 @@ class Google_agent:
                 elif ctx.state.route=='Query_notes_editor':
                     return query_notes_editor_node()
                 else:
+                    ctx.state.plan={}
                     return End(ctx.state)
                     
                 
