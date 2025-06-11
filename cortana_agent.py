@@ -1,6 +1,6 @@
 from __future__ import annotations
 from google_agent import Google_agent
-from deep_research import Deep_research_engine
+
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.common_tools.tavily import tavily_search_tool
 from pydantic_ai.messages import ModelMessage
@@ -28,10 +28,10 @@ class Message_state:
 
 @dataclass
 class Deps:
-    deep_research_output: dict
+    agents_output: dict
     mail_inbox: dict
     google_agent_output: dict
-
+    
 class Cortana_agent:
     def __init__(self, api_keys:dict):
         """
@@ -56,7 +56,8 @@ class Cortana_agent:
             # Google Agent Interaction Function
 
             ## Purpose
-            This function provides an interface to interact with a Google agent that can perform multiple Google-related tasks simultaneously.
+            This function provides an interface to interact with a Google agent that can perform multiple Google-related tasks simultaneously but it cannot do 
+            websearches.
 
             ## Capabilities
             The agent can:
@@ -83,11 +84,11 @@ class Cortana_agent:
 
             """
 
-           
             res=google_agent.chat(query)
             if google_agent.state.mail_inbox:
                 ctx.deps.mail_inbox=google_agent.state.mail_inbox
             ctx.deps.google_agent_output=google_agent.state
+            ctx.deps.agents_output['google_agent_tool']=google_agent.state.node_messages_dict
             try:
                 return res.node_messages[-1]
             except:
@@ -100,35 +101,36 @@ class Cortana_agent:
             google_agent.reset()
             return 'Google agent has been reset'
 
-        async def search_and_question_answering_tool(ctx: RunContext[Deps], query:str, route:str):
-            """
-            Use this tool to do a deep research on a topic, to gather detailed informations and data, answer_questions from the deep research results or do a quick research if the answer is not related to the deep research.
-            Args:
-                query (str): The query related to the search_and_question_answering_tool and its capabilities
-                route (str): The route, either deep_research or answer_question, or quick_research
-                
 
-            Returns:
-                str: The response from the search_and_question_answering_tool
+        async def web_search_tool(ctx: RunContext[Deps], query:str):
             """
-            deep_research_engine=Deep_research_engine(llms['pydantic_llm'],self.api_keys.api_keys)
-            @dataclass
-            class Route:
-                answer: str = Field(default_factory=None,description="the answer to the question if the question is related to the deep research")
-                route: str = Field(description="the route, either deep_research or answer_question, or quick_research")
-            agent=Agent(llms['pydantic_llm'], output_type=Route, instructions="you are a router/question answering agent, you are given a query and you need to decide what to do based on the information provided")
-            response= agent.run_sync(f"based on the query: {query}, and the information provided: {ctx.deps.deep_research_output if ctx.deps.deep_research_output else ''} either answer the question or if the answer is not related to the information provided or need more information return 'quick_research' or 'deep_research'")
-            route=response.output.route
-            if route=='deep_research':
-                response=deep_research_engine.chat(query)
-                ctx.deps.deep_research_output=response
-                return response
-            elif route=='answer_question':
-                return response.output.answer
-            elif route=='quick_research':
-                quick_research_agent=Agent(llms['pydantic_llm'], tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key'])], instructions="do a websearch based on the query")
-                result= quick_research_agent.run_sync(query)
-                return result.output
+            Use this tool to do a quick web search on a topic, to gather informations and data.
+            Args:
+                query (str): The query related to the web_search_tool and its capabilities
+                
+            Returns:
+                str: The response from the web_search_tool
+            """
+            quick_research_agent=Agent(llms['pydantic_llm'], tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key'])], instructions="do a websearch based on the query")
+            result= quick_research_agent.run_sync(query)
+            ctx.deps.agents_output['web_search_tool']=result.output
+            return result.output
+        
+        async def Memory_tool(ctx: RunContext[Deps], query:str):
+            """
+            Use this tool to dive into the memory of the agents to answer questions based on previous information provided from previous tool calls.
+            Args:
+                query (str): The query related to the Memory_tool and its capabilities
+                
+            Returns:
+                str: The response from the Memory_tool
+            """
+            history=ctx.deps.agents_output
+
+            answer_question_agent=Agent(llms['pydantic_llm'], tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key'])], instructions="answer the question based on the information provided")
+            result= answer_question_agent.run_sync(f"answer the question based on the information provided: {history} and the query: {query}")
+            return result.output
+
 
         async def get_current_time_tool():
             """
@@ -144,10 +146,10 @@ class Cortana_agent:
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, search_and_question_answering_tool, get_current_time_tool, reset_google_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, web_search_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
-        self.deps=Deps(deep_research_output={}, google_agent_output={},mail_inbox={})
+        self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
     
     def chat(self, query:any):
         """
@@ -212,5 +214,5 @@ class Cortana_agent:
             str: A confirmation message indicating that the agent has been reset.
         """
         self.memory.messages=[]
-        self.deps=Deps(deep_research_output={}, google_agent_output={},mail_inbox={})
+        self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
         return f'Cortana has been reset'
