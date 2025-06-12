@@ -1,15 +1,15 @@
 from __future__ import annotations
-from google_agent import Google_agent
-from Outlook_agent import outlook_agent
+import requests
+import httpx
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.common_tools.tavily import tavily_search_tool
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
-from composio_langgraph import ComposioToolSet
 from dataclasses import dataclass
 from datetime import datetime
 from pydantic import Field
+import json
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 import nest_asyncio
@@ -33,25 +33,24 @@ class Deps:
     google_agent_output: dict
     
 class Cortana_agent:
-    def __init__(self, api_keys:dict):
+    def __init__(self, api_keys:dict, google_agent_api_url:str = "https://wolf1997-google-agent-api.hf.space", outlook_agent_api_url:str = "https://wolf1997-outlook-agent-api.hf.space"):
         """
         Args:
             
             api_keys (dict): The API keys to use as a dictionary
+            google_agent_api_url (str): The URL of the Google Agent API
+            outlook_agent_api_url (str): The URL of the Outlook Agent API
             
         """
-        self.toolset=ComposioToolSet(api_key=api_keys['composio_key'])
         GEMINI_MODEL='gemini-2.0-flash'
         self.api_keys=Api_keys(api_keys=api_keys)
+        self.google_agent_api_url = google_agent_api_url
+        self.outlook_agent_api_url = outlook_agent_api_url
        
         # tools
         llms={'pydantic_llm':GoogleModel('gemini-2.5-flash-preview-05-20', provider=GoogleProvider(api_key=self.api_keys.api_keys['google_api_key'])),
               'langchain_llm':ChatGoogleGenerativeAI(google_api_key=self.api_keys.api_keys['google_api_key'], model=GEMINI_MODEL, temperature=0.3),
-              'openai_llm':ChatOpenAI(api_key=self.api_keys.api_keys['openai_api_key'])}
-        
-        
-        google_agent=Google_agent(llms,self.api_keys.api_keys, self.toolset)
-        microsoft_outlook_agent=outlook_agent(llms,self.api_keys.api_keys, self.toolset)
+              'openai_llm':ChatOpenAI(model='gpt-4.1-nano',api_key=self.api_keys.api_keys['openai_api_key'])}
         async def google_agent_tool(ctx:RunContext[Deps],query:str):
             """
             # Google Agent Interaction Function
@@ -84,37 +83,97 @@ class Cortana_agent:
             - All Google-related operations should be included in the query string
 
             """
-
-            res=google_agent.chat(query)
-            if google_agent.state.mail_inbox:
-                ctx.deps.mail_inbox=google_agent.state.mail_inbox
-            ctx.deps.google_agent_output=google_agent.state
-            ctx.deps.agents_output['google_agent_tool']=google_agent.state.node_messages_dict
             try:
-                return res.node_messages[-1]
-            except:
-                return res
+                # Make API call to Google Agent
+                data = {
+                    'query': query,
+                    'google_api_key': self.api_keys.api_keys['google_api_key'],
+                    'openai_api_key': self.api_keys.api_keys['openai_api_key'],
+                    'composio_key': self.api_keys.api_keys['composio_key'],
+                    'pse': self.api_keys.api_keys.get('pse', '')
+                }
+                
+                response = requests.post(f"{self.google_agent_api_url}/chat", data=data)
+                response.raise_for_status()
+                result = response.json()
+                
+                # Store the response in context
+                ctx.deps.agents_output['google_agent_tool'] = result
+                
+                return result.get('response').get('node_messages_list')[-1]
+            except Exception as e:
+                return f"Error calling Google Agent API: {str(e)}"
         
         async def reset_google_agent_tool(ctx:RunContext[Deps]):
             """
             Use this tool to reset the google agent when it is not working as expected
             """
-            google_agent.reset()
-            return 'Google agent has been reset'
+            try:
+                response = requests.post(f"{self.google_agent_api_url}/reset")
+                response.raise_for_status()
+                result = response.json()
+                return result.get('message', 'Google agent has been reset')
+            except Exception as e:
+                return f"Error resetting Google Agent: {str(e)}"
 
         async def outlook_agent_tool(ctx:RunContext[Deps], query:str):
             """
-            Use this tool to interact with the outlook agent
+            # Outlook Agent Interaction Function
+
+            ## Purpose
+            This function provides an interface to interact with an Outlook agent that can perform Microsoft 365 tasks.
+
+            ## Capabilities
+            The agent can:
+            - Read and manage Outlook emails
+            - Create and manage Microsoft Tasks/To-Do
+            - Manage Outlook Calendar events
+            - Manage Outlook Contacts
+            - Access Microsoft Graph API services
+
+            ## Parameters
+            - `query` (str): A complete query string describing the desired Outlook agent actions
+            - The query should include all necessary details for the requested operations
+            - Multiple actions can be specified in a single query
+
+            ## Returns
+            - `str`: The agent's response to the query
+
+            ## Important Notes
+            - The agent can process multiple actions in a single query
+            - All Microsoft 365 operations should be included in the query string
             """
-            res=microsoft_outlook_agent.chat(query)
-            if microsoft_outlook_agent.state.mail_inbox:
-                ctx.deps.mail_inbox=microsoft_outlook_agent.state.mail_inbox
-            ctx.deps.google_agent_output=microsoft_outlook_agent.state
-            ctx.deps.agents_output['outlook_agent_tool']=microsoft_outlook_agent.state.node_messages_dict
             try:
-                return res.node_messages[-1]
-            except:
-                return res
+                # Make API call to Outlook Agent
+                data = {
+                    'query': query,
+                    'google_api_key': self.api_keys.api_keys['google_api_key'],
+                    'openai_api_key': self.api_keys.api_keys['openai_api_key'],
+                    'composio_key': self.api_keys.api_keys['composio_key']
+                }
+                
+                response = requests.post(f"{self.outlook_agent_api_url}/chat", data=data)
+                response.raise_for_status()
+                result = response.json()
+                
+                # Store the response in context
+                ctx.deps.agents_output['outlook_agent_tool'] = result
+                
+                return result.get('response').get('node_messages_list')[-1]
+            except Exception as e:
+                return f"Error calling Outlook Agent API: {str(e)}"
+
+        async def reset_outlook_agent_tool(ctx:RunContext[Deps]):
+            """
+            Use this tool to reset the outlook agent when it is not working as expected
+            """
+            try:
+                response = requests.post(f"{self.outlook_agent_api_url}/reset")
+                response.raise_for_status()
+                result = response.json()
+                return result.get('message', 'Outlook agent has been reset')
+            except Exception as e:
+                return f"Error resetting Outlook Agent: {str(e)}"
 
         async def web_search_tool(ctx: RunContext[Deps], query:str):
             """
@@ -160,7 +219,7 @@ class Cortana_agent:
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, web_search_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, web_search_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
