@@ -100,7 +100,8 @@ class Cortana_agent:
                 # Store the response in context
                 ctx.deps.agents_output['google_agent_tool'] = result
                 
-                return result.get('response').get('node_messages_list')[-1]
+                return str(result.get('response').get('node_messages_list')[-1])
+                
             except Exception as e:
                 return f"Error calling Google Agent API: {str(e)}"
         
@@ -159,7 +160,7 @@ class Cortana_agent:
                 # Store the response in context
                 ctx.deps.agents_output['outlook_agent_tool'] = result
                 
-                return result.get('response').get('node_messages_list')[-1]
+                return str(result.get('response').get('node_messages_list')[-1])
             except Exception as e:
                 return f"Error calling Outlook Agent API: {str(e)}"
 

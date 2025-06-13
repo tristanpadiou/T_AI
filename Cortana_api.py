@@ -163,7 +163,22 @@ async def chat(
         except Exception as e:
             
             raise HTTPException(status_code=500, detail=f"Error getting Cortana instance: {str(e)}")
-        response = cortana.chat(inputs)
+        
+        # Handle the pydantic_ai usage tracking bug temporarily
+        try:
+            response = cortana.chat(inputs)
+        except TypeError as e:
+            if "unsupported operand type(s) for +: 'int' and 'list'" in str(e):
+                # This is a known pydantic_ai bug with usage tracking
+                # For now, we'll retry once which often works
+                try:
+                    response = cortana.chat(inputs)
+                except Exception as retry_e:
+                    raise HTTPException(status_code=500, detail=f"Error in chat after retry (known pydantic_ai bug): {str(retry_e)}")
+            else:
+                raise HTTPException(status_code=500, detail=f"Type error in chat: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error in chat: {str(e)}")
         # Generate audio if requested and token provided
         audio_url = None
         if include_audio and hf_token:
