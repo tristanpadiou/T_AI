@@ -113,7 +113,7 @@ class Cortana_agent:
                 response = requests.post(f"{self.google_agent_api_url}/reset")
                 response.raise_for_status()
                 result = response.json()
-                return result.get('message', 'Google agent has been reset')
+                return result.get('message')
             except Exception as e:
                 return f"Error resetting Google Agent: {str(e)}"
 
@@ -172,7 +172,7 @@ class Cortana_agent:
                 response = requests.post(f"{self.outlook_agent_api_url}/reset")
                 response.raise_for_status()
                 result = response.json()
-                return result.get('message', 'Outlook agent has been reset')
+                return result.get('message')
             except Exception as e:
                 return f"Error resetting Outlook Agent: {str(e)}"
 
