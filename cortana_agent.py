@@ -176,19 +176,6 @@ class Cortana_agent:
             except Exception as e:
                 return f"Error resetting Outlook Agent: {str(e)}"
 
-        async def web_search_tool(ctx: RunContext[Deps], query:str):
-            """
-            Use this tool to do a quick web search on a topic, to gather informations and data.
-            Args:
-                query (str): The query related to the web_search_tool and its capabilities
-                
-            Returns:
-                str: The response from the web_search_tool
-            """
-            quick_research_agent=Agent(llms['pydantic_llm'], tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key'])], instructions="do a websearch based on the query")
-            result= quick_research_agent.run_sync(query)
-            ctx.deps.agents_output['web_search_tool']=result.output
-            return result.output
         
         async def Memory_tool(ctx: RunContext[Deps], query:str):
             """
@@ -201,7 +188,7 @@ class Cortana_agent:
             """
             history=ctx.deps.agents_output
 
-            answer_question_agent=Agent(llms['pydantic_llm'], tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key'])], instructions="answer the question based on the information provided")
+            answer_question_agent=Agent(llms['pydantic_llm'], instructions="answer the question based on the information provided")
             result= answer_question_agent.run_sync(f"answer the question based on the information provided: {history} and the query: {query}")
             return result.output
 
@@ -220,7 +207,7 @@ class Cortana_agent:
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[google_agent_tool, web_search_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
