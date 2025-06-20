@@ -63,6 +63,7 @@ class Cortana_agent:
             The agent can:
             - Search for images
             - Manage user emails
+            - Get mail details
             - Manage Google tasks
             - get contact list
             - List available tools
@@ -98,14 +99,14 @@ class Cortana_agent:
                 result = response.json()
                 
                 # Store the response in context
-                ctx.deps.agents_output['google_agent_tool'] = result
+                ctx.deps.agents_output['google_agent_tool'] = result.get('response').get('node_messages_dict')
                 
                 return str(result.get('response').get('node_messages_list')[-1])
                 
             except Exception as e:
                 return f"Error calling Google Agent API: {str(e)}"
         
-        async def reset_google_agent_tool(ctx:RunContext[Deps]):
+        async def reset_google_agent_tool():
             """
             Use this tool to reset the google agent when it is not working as expected
             """
@@ -158,13 +159,13 @@ class Cortana_agent:
                 result = response.json()
                 
                 # Store the response in context
-                ctx.deps.agents_output['outlook_agent_tool'] = result
+                ctx.deps.agents_output['outlook_agent_tool'] = result.get('response').get('node_messages_dict')
                 
                 return str(result.get('response').get('node_messages_list')[-1])
             except Exception as e:
                 return f"Error calling Outlook Agent API: {str(e)}"
 
-        async def reset_outlook_agent_tool(ctx:RunContext[Deps]):
+        async def reset_outlook_agent_tool():
             """
             Use this tool to reset the outlook agent when it is not working as expected
             """
@@ -177,20 +178,25 @@ class Cortana_agent:
                 return f"Error resetting Outlook Agent: {str(e)}"
 
         
-        async def Memory_tool(ctx: RunContext[Deps], query:str):
+        async def Memory_tool(ctx: RunContext[Deps], query:str,tool:str):
             """
-            Use this tool to dive into the memory of the agents to answer questions based on previous information provided from previous tool calls.
+            Use this tool to dive into the memory database of the agents to answer questions based on previous information provided from previous tool calls
+            this tool can also be used to get more details about a specific email or task.
+            The database is dictionary.
             Args:
                 query (str): The query related to the Memory_tool and its capabilities
+                tool (str): The tool that was used to get the information either google_agent_tool or outlook_agent_tool
                 
             Returns:
                 str: The response from the Memory_tool
             """
-            history=ctx.deps.agents_output
-
+            history=ctx.deps.agents_output.get(tool)
+            
+            
             answer_question_agent=Agent(llms['pydantic_llm'], instructions="answer the question based on the information provided")
             result= answer_question_agent.run_sync(f"answer the question based on the information provided: {history} and the query: {query}")
             return result.output
+
 
 
         async def get_current_time_tool():
