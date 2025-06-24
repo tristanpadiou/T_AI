@@ -233,10 +233,10 @@ class Cortana_agent:
                 image_url = data['items'][0]['link']
                 res=f'image url for {query} : {image_url}'
 
-                if not ctx.deps.agents_output['find_images_tool']:
+                if not ctx.deps.agents_output.get('find_images_tool'):
                     ctx.deps.agents_output['find_images_tool']=[]
 
-                ctx.deps.agents_output['find_images_tool'].append(res)
+                ctx.deps.agents_output['find_images_tool'].append(image_url)
 
                 if len(ctx.deps.agents_output['find_images_tool'])>5:
                     del ctx.deps.agents_output['find_images_tool'][0]
