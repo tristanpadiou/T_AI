@@ -1,7 +1,7 @@
 from __future__ import annotations
 import requests
 import httpx
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, RunContext, format_as_xml
 from pydantic_ai.common_tools.tavily import tavily_search_tool
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models.google import GoogleModel
@@ -246,8 +246,8 @@ class Cortana_agent:
                 
         async def code_execution_tool(ctx: RunContext[Deps],query:str):
             """
-            Use this tool to execute code to answer math questions or any other questions that require code execution
-            args: query
+            Use this tool to answer math questions or any other questions that require code execution, it can handle complex math problems and code execution.
+            args: query (str): the detailed query 
             return: the result of the code execution
             """
             client = genai.Client(api_key=self.api_keys.api_keys['google_api_key'])
@@ -273,7 +273,7 @@ class Cortana_agent:
             ctx.deps.agents_output['code_execution_tool']=res
 
             
-            return f'the result of the code execution for {query} is {res}'
+            return f'the result of the code execution is {res.get("output") if res.get("output") else "no result"}'
         @dataclass
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
