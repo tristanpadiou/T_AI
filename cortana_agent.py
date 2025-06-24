@@ -258,8 +258,7 @@ class Cortana_agent:
                     tools=[types.Tool(code_execution=types.ToolCodeExecution)]
                 ),
             )
-            if not ctx.deps.agents_output['google_tool_with_code_execution']:
-                ctx.deps.agents_output['google_tool_with_code_execution']=[]
+            
             
             res={}
             for part in response.candidates[0].content.parts:
@@ -270,9 +269,9 @@ class Cortana_agent:
                     res['code']=part.executable_code.code
                 if part.code_execution_result is not None:
                     res['output']=part.code_execution_result.output
-            ctx.deps.agents_output['google_tool_with_code_execution'].append(res)
-            if len(ctx.deps.agents_output['google_tool_with_code_execution'])>5:
-                del ctx.deps.agents_output['google_tool_with_code_execution'][0]
+            ctx.deps.agents_output['google_tool_with_code_execution']=res
+
+            
             return f'the result of the code execution for {query} is {res}'
         @dataclass
         class Cortana_output:
