@@ -12,7 +12,8 @@ from pydantic import Field
 from google import genai
 from google.genai import types
 import json
-
+import nest_asyncio
+nest_asyncio.apply()
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from langchain_openai import ChatOpenAI
