@@ -243,7 +243,7 @@ class Cortana_agent:
             else:
                 return 'no image found'
                 
-        async def google_tool_with_code_execution(ctx: RunContext[Deps],query:str):
+        async def code_execution_tool(ctx: RunContext[Deps],query:str):
             """
             Use this tool to execute code to answer math questions or any other questions that require code execution
             args: query
@@ -269,7 +269,7 @@ class Cortana_agent:
                     res['code']=part.executable_code.code
                 if part.code_execution_result is not None:
                     res['output']=part.code_execution_result.output
-            ctx.deps.agents_output['google_tool_with_code_execution']=res
+            ctx.deps.agents_output['code_execution_tool']=res
 
             
             return f'the result of the code execution for {query} is {res}'
@@ -277,7 +277,7 @@ class Cortana_agent:
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool, find_images_tool, google_tool_with_code_execution], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool, find_images_tool, code_execution_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
