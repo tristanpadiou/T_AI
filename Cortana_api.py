@@ -40,6 +40,8 @@ app = FastAPI(
     - Web search integration via Google and Tavily
     - OpenAI GPT integration
     - Composio tools integration
+    - Code execution integration
+    - Image search integration
     - Memory management and conversation reset
     - Health monitoring and uptime tracking
     """,
@@ -367,6 +369,8 @@ API for interacting with Cortana AI Assistant, including chat, text-to-speech, a
 - Web search integration via Google and Tavily
 - OpenAI GPT integration
 - Composio tools integration
+- Code execution integration
+- Image search integration
 - Memory management and conversation reset
 - Health monitoring and uptime tracking
 
@@ -581,6 +585,8 @@ async def root():
             <li>Web search integration via Google and Tavily</li>
             <li>OpenAI GPT integration</li>
             <li>Composio tools integration</li>
+            <li>Code execution integration</li>
+            <li>Image search integration</li>
             <li>Memory management and conversation reset</li>
             <li>Health monitoring and uptime tracking</li>
         </ul>
