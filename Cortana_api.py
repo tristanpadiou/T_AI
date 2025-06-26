@@ -30,12 +30,12 @@ app = FastAPI(
     - `/api-docs` - Get comprehensive API documentation
     
     **POST Requests:**
-    - `/chat` - Main chat endpoint with multi-modal support (text, image, voice, document uploads)
+    - `/chat` - Main chat endpoint with multi-modal support (text, multiple images, voice, document uploads)
     - `/text-to-speech` - Convert text to speech using HuggingFace TTS
     - `/reset` - Reset Cortana's memory and conversation history
     
     ### Features:
-    - Multi-modal input support (text, images, voice, documents)
+    - Multi-modal input support (text, multiple images, voice, documents)
     - Text-to-speech conversion
     - Web search integration via Google and Tavily
     - OpenAI GPT integration
@@ -133,7 +133,7 @@ async def chat(
     composio_key: str = Form(None),
     hf_token: str = Form(None),
     include_audio: bool = Form(False),
-    image: Optional[UploadFile] = File(None),
+    images: Optional[List[UploadFile]] = File(None),
     voice: Optional[UploadFile] = File(None),
     document: Optional[UploadFile] = File(None),
 ):
@@ -141,13 +141,21 @@ async def chat(
         # Create a list of inputs starting with the query
         inputs = [query]
         
-        # Add any uploaded files as BinaryContent objects
-        for file_type, file_obj in [("image", image), ("voice", voice), ("document", document)]:
+        # Handle multiple images
+        if images:
+            for image in images:
+                if image is not None:
+                    contents = await image.read()
+                    binary_content = BinaryContent(data=contents, media_type=image.content_type)
+                    inputs.append(binary_content)
+                    await image.close()
+        
+        # Handle voice and document uploads
+        for file_type, file_obj in [("voice", voice), ("document", document)]:
             if file_obj is not None:
                 contents = await file_obj.read()
                 binary_content = BinaryContent(data=contents, media_type=file_obj.content_type)
-                
-                inputs = [query, binary_content]
+                inputs.append(binary_content)
                 await file_obj.close()
 
         api_keys = {
@@ -251,7 +259,7 @@ API for interacting with Cortana AI Assistant, including chat, text-to-speech, a
 | composio_key | string | No | Composio API key |
 | hf_token | string | No | HuggingFace token for text-to-speech |
 | include_audio | boolean | No | Whether to include audio in response |
-| image | file | No | Optional image file upload |
+| images | file[] | No | Optional multiple image files upload |
 | voice | file | No | Optional voice file upload |
 | document | file | No | Optional document file upload |
 
@@ -394,7 +402,7 @@ async def get_docs():
             {
                 "path": "/chat",
                 "method": "POST",
-                "description": "Main chat endpoint with multi-modal support for text, images, voice, and documents",
+                "description": "Main chat endpoint with multi-modal support for text, multiple images, voice, and documents",
                 "content_type": "multipart/form-data",
                 "parameters": [
                     {
@@ -447,10 +455,10 @@ async def get_docs():
                         "description": "Whether to include audio response (requires hf_token)"
                     },
                     {
-                        "name": "image",
-                        "type": "file",
+                        "name": "images",
+                        "type": "file[]",
                         "required": False,
-                        "description": "Optional image file upload for visual analysis"
+                        "description": "Optional multiple image files upload for visual analysis"
                     },
                     {
                         "name": "voice", 
@@ -537,8 +545,8 @@ async def get_docs():
             "API keys are required for most functionality", 
             "The chat endpoint supports multiple input types simultaneously",
             "Audio responses require a valid HuggingFace token",
-            "File uploads (image, voice, document) are optional and can be used individually or together",
-            "Only one file of each type (image, voice, document) can be uploaded per request"
+            "File uploads (images, voice, document) are optional and can be used individually or together",
+            "Multiple images can be uploaded per request, but only one voice and one document file"
         ]
     }
 
@@ -573,14 +581,14 @@ async def root():
         
         <p><strong>POST Requests:</strong></p>
         <ul>
-            <li><code>/chat</code> - Main chat endpoint with multi-modal support (text, image, voice, document uploads)</li>
+            <li><code>/chat</code> - Main chat endpoint with multi-modal support (text, multiple images, voice, document uploads)</li>
             <li><code>/text-to-speech</code> - Convert text to speech using HuggingFace TTS</li>
             <li><code>/reset</code> - Reset Cortana's memory and conversation history</li>
         </ul>
         
         <h3>Features:</h3>
         <ul>
-            <li>Multi-modal input support (text, images, voice, documents)</li>
+            <li>Multi-modal input support (text, multiple images, voice, documents)</li>
             <li>Text-to-speech conversion</li>
             <li>Web search integration via Google and Tavily</li>
             <li>OpenAI GPT integration</li>
