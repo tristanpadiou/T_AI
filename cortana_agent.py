@@ -35,7 +35,7 @@ class Deps:
     google_agent_output: dict
     
 class Cortana_agent:
-    def __init__(self, api_keys:dict, google_agent_api_url:str = "https://wolf1997-google-agent-api.hf.space", outlook_agent_api_url:str = "https://wolf1997-outlook-agent-api.hf.space"):
+    def __init__(self, api_keys:dict, google_agent_api_url:str = "https://wolf1997-google-agent-api.hf.space", outlook_agent_api_url:str = "https://wolf1997-outlook-agent-api.hf.space", notion_agent_api_url:str = "https://wolf1997-notion-tool.hf.space"):
         """
         Args:
             
@@ -48,6 +48,7 @@ class Cortana_agent:
         self.api_keys=Api_keys(api_keys=api_keys)
         self.google_agent_api_url = google_agent_api_url
         self.outlook_agent_api_url = outlook_agent_api_url
+        self.notion_agent_api_url = notion_agent_api_url
        
         # tools
         llms={'pydantic_llm':GoogleModel('gemini-2.5-flash-preview-05-20', provider=GoogleProvider(api_key=self.api_keys.api_keys['google_api_key'])),
@@ -205,6 +206,51 @@ class Cortana_agent:
                 str: The current time in a formatted string
             """
             return f"The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        async def notion_agent_tool(ctx: RunContext[Deps], query: str):
+            """
+            Use this tool to interact with the notion database
+            args: query (str): the query to the notion database
+            return: the result of the notion database
+            """
+            try:
+                # Make API call to Notion Agent
+                data = {
+                    'query': query,
+                    'google_api_key': self.api_keys.api_keys['google_api_key'],
+                    'openai_api_key': self.api_keys.api_keys['openai_api_key'],
+                    'composio_key': self.api_keys.api_keys['composio_key']
+                }
+                
+                headers = {
+                    'Authorization': f'Bearer {self.api_keys.api_keys["hf_token"]}'
+                }
+                
+                response = requests.post(f"{self.notion_agent_api_url}/chat", data=data, headers=headers)
+                response.raise_for_status()
+                result = response.json()
+            
+                ctx.deps.agents_output['notion_agent_tool'] = result.get('response').get('node_messages_dict')
+                
+                return str(result.get('response'))
+            except Exception as e:
+                return f"Error calling Notion Agent API: {str(e)}"
+            
+        async def reset_notion_agent_tool():
+            """
+            Use this tool to reset the notion agent when it is not working as expected
+            """
+            try:
+                headers = {
+                    'Authorization': f'Bearer {self.api_keys.api_keys["hf_token"]}'
+                }
+                
+                response = requests.post(f"{self.notion_agent_api_url}/reset", headers=headers)
+                response.raise_for_status()
+                result = response.json()
+                return result.get('message')
+            except Exception as e:
+                return f"Error resetting Notion Agent: {str(e)}"
         
         async def find_images_tool(ctx: RunContext[Deps],query:str):
             """Search for images using this tool, this tool can search one image at a time
@@ -278,7 +324,7 @@ class Cortana_agent:
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool, find_images_tool, code_execution_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool, find_images_tool, code_execution_tool, notion_agent_tool, reset_notion_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})

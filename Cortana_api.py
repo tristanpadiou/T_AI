@@ -163,7 +163,8 @@ async def chat(
             "tavily_key": tavily_key,
             "openai_api_key": openai_api_key,
             "pse": pse,
-            "composio_key": composio_key
+            "composio_key": composio_key,
+            "hf_token": hf_token
         }
         
         # Get or initialize Cortana instance based on keys
