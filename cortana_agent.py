@@ -230,7 +230,7 @@ class Cortana_agent:
                 response.raise_for_status()
                 result = response.json()
             
-                ctx.deps.agents_output['notion_agent_tool'] = result.get('response').get('node_messages_dict')
+                ctx.deps.agents_output['notion_agent_tool'] = result.get('response')
                 
                 return str(result.get('response'))
             except Exception as e:
