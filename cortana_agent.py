@@ -199,13 +199,7 @@ class Cortana_agent:
             result= answer_question_agent.run_sync(f"answer the question based on the information provided: {history} and the query: {query}")
             return result.output
 
-        async def get_current_time_tool():
-            """
-            Use this tool to get the current time.
-            Returns:
-                str: The current time in a formatted string
-            """
-            return f"The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
 
         async def notion_agent_tool(ctx: RunContext[Deps], query: str):
             """
@@ -324,8 +318,8 @@ class Cortana_agent:
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, get_current_time_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool, find_images_tool, code_execution_tool, notion_agent_tool, reset_notion_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
-                          you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
+        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool, find_images_tool, code_execution_tool, notion_agent_tool, reset_notion_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+                          you have the current time and the user query, you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
     
@@ -381,7 +375,7 @@ class Cortana_agent:
         ```
         """
 
-        result=self.agent.run_sync(query, deps=self.deps, message_history=self.memory.messages)
+        result=self.agent.run_sync(f'The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, the user query: {query}', deps=self.deps, message_history=self.memory.messages)
         self.memory.messages=result.all_messages()
         return result.output
     def reset(self):
