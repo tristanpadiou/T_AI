@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Dict, Optional, List, Union
 from dotenv import load_dotenv
-from pydantic_ai import BinaryContent
+from pydantic_ai import Agent, BinaryContent
 from datetime import datetime
 import os
 import requests
@@ -17,6 +17,8 @@ import time
 import json
 
 import logfire
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.providers.google import GoogleProvider
 
 app = FastAPI(
     title="Cortana API", 
@@ -160,7 +162,10 @@ async def chat(
             if file_obj is not None:
                 contents = await file_obj.read()
                 binary_content = BinaryContent(data=contents, media_type=file_obj.content_type)
-                inputs.append(binary_content)
+                model=GoogleModel('gemini-2.5-flash', provider=GoogleProvider(api_key=google_api_key))
+                file_agent=Agent(model, system_prompt="you are a file agent that can analyze files and return the content of the file, if it is an audio file, you should return the text of the audio file, if it is a document, you should return the text of the document")
+                result=await file_agent.run([binary_content])
+                inputs.append(result.output)
                 await file_obj.close()
 
         api_keys = {
