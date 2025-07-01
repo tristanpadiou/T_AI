@@ -5,9 +5,11 @@ from pydantic import BaseModel
 from typing import Dict, Optional, List, Union
 from dotenv import load_dotenv
 from pydantic_ai import BinaryContent
+from datetime import datetime
 import os
 import requests
 import hashlib
+import asyncio
 load_dotenv()
 
 import uvicorn
@@ -86,7 +88,7 @@ class KeyCache:
         # Compute hash
         return hashlib.sha256(keys_str.encode()).hexdigest()
     
-    def get_cortana(self, api_keys: Dict[str, str]) -> Cortana_agent:
+    async def get_cortana(self, api_keys: Dict[str, str]) -> Cortana_agent:
         current_hash = self._compute_keys_hash(api_keys)
         
         # Initialize or reinitialize if keys have changed
@@ -94,12 +96,15 @@ class KeyCache:
             # Filter out None values for initialization
             init_keys = {k: v for k, v in api_keys.items() if v is not None}
             # Pass the entire dictionary as a single parameter
-            self._cortana = Cortana_agent(api_keys=init_keys)
+            self._cortana = Cortana_agent(api_keys=init_keys, notion_agent_mpc_url=os.getenv('notion_mcp_server'))
+            await self._cortana.connect()
             self._last_keys_hash = current_hash
         
         return self._cortana
-    def reset(self):
-        self._cortana.reset()
+    async def reset(self):
+        if self._cortana:
+            await self._cortana.disconnect()
+            self._cortana.reset()
         self._last_keys_hash = None
 # Initialize key cache
 key_cache = KeyCache()
@@ -139,7 +144,7 @@ async def chat(
 ):
     try:
         # Create a list of inputs starting with the query
-        inputs = [query]
+        inputs = [f'The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, the user query: {query}']
         
         # Handle multiple images
         if images:
@@ -169,7 +174,7 @@ async def chat(
         
         # Get or initialize Cortana instance based on keys
         try:
-            cortana = key_cache.get_cortana(api_keys)
+            cortana = await key_cache.get_cortana(api_keys)
             
         except Exception as e:
             
@@ -177,13 +182,13 @@ async def chat(
         
         # Handle the pydantic_ai usage tracking bug temporarily
         try:
-            response = cortana.chat(inputs)
+            response = await cortana.chat(inputs)
         except TypeError as e:
             if "unsupported operand type(s) for +: 'int' and 'list'" in str(e):
                 # This is a known pydantic_ai bug with usage tracking
                 # For now, we'll retry once which often works
                 try:
-                    response = cortana.chat(inputs)
+                    response = await cortana.chat(inputs)
                 except Exception as retry_e:
                     raise HTTPException(status_code=500, detail=f"Error in chat after retry (known pydantic_ai bug): {str(retry_e)}")
             else:
@@ -209,7 +214,7 @@ async def chat(
 @app.post("/reset")
 async def reset_cortana():
     try:
-        key_cache.reset()
+        await key_cache.reset()
         return {"status": "success", "message": "Cortana memory reset successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -6,14 +6,20 @@ from pydantic_ai.common_tools.tavily import tavily_search_tool
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.mcp import MCPServerStreamableHTTP
 from dataclasses import dataclass
 from datetime import datetime
 from pydantic import Field
 from google import genai
 from google.genai import types
 import json
-import nest_asyncio
-nest_asyncio.apply()
+import os
+from dotenv import load_dotenv
+load_dotenv()
+# import nest_asyncio
+# nest_asyncio.apply()
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from langchain_openai import ChatOpenAI
@@ -35,7 +41,7 @@ class Deps:
     google_agent_output: dict
     
 class Cortana_agent:
-    def __init__(self, api_keys:dict, google_agent_api_url:str = "https://wolf1997-google-agent-api.hf.space", outlook_agent_api_url:str = "https://wolf1997-outlook-agent-api.hf.space", notion_agent_api_url:str = "https://wolf1997-notion-tool.hf.space"):
+    def __init__(self, api_keys:dict, google_agent_api_url:str = "https://wolf1997-google-agent-api.hf.space", outlook_agent_api_url:str = "https://wolf1997-outlook-agent-api.hf.space", notion_agent_mpc_url:str = ''):
         """
         Args:
             
@@ -48,12 +54,13 @@ class Cortana_agent:
         self.api_keys=Api_keys(api_keys=api_keys)
         self.google_agent_api_url = google_agent_api_url
         self.outlook_agent_api_url = outlook_agent_api_url
-        self.notion_agent_api_url = notion_agent_api_url
+        self.notion_agent_mpc_url = notion_agent_mpc_url
        
         # tools
-        llms={'pydantic_llm':GoogleModel('gemini-2.5-flash-preview-05-20', provider=GoogleProvider(api_key=self.api_keys.api_keys['google_api_key'])),
+        llms={'pydantic_llm':GoogleModel('gemini-2.5-flash', provider=GoogleProvider(api_key=self.api_keys.api_keys['google_api_key'])),
               'langchain_llm':ChatGoogleGenerativeAI(google_api_key=self.api_keys.api_keys['google_api_key'], model=GEMINI_MODEL, temperature=0.3),
-              'openai_llm':ChatOpenAI(model='gpt-4.1-nano',api_key=self.api_keys.api_keys['openai_api_key'])}
+              'openai_llm':ChatOpenAI(model='gpt-4.1-nano',api_key=self.api_keys.api_keys['openai_api_key']),
+              'mcp_llm':OpenAIModel('gpt-4.1-mini',provider=OpenAIProvider(api_key=self.api_keys.api_keys['openai_api_key']))}
         async def google_agent_tool(ctx:RunContext[Deps],query:str):
             """
             # Google Agent Interaction Function
@@ -201,50 +208,50 @@ class Cortana_agent:
 
 
 
-        async def notion_agent_tool(ctx: RunContext[Deps], query: str):
-            """
-            Use this tool to interact with the notion database
-            args: query (str): the query to the notion database
-            return: the result of the notion database
-            """
-            try:
-                # Make API call to Notion Agent
-                data = {
-                    'query': query,
-                    'google_api_key': self.api_keys.api_keys['google_api_key'],
-                    'openai_api_key': self.api_keys.api_keys['openai_api_key'],
-                    'composio_key': self.api_keys.api_keys['composio_key']
-                }
+        # async def notion_agent_tool(ctx: RunContext[Deps], query: str):
+        #     """
+        #     Use this tool to interact with the notion database
+        #     args: query (str): the query to the notion database
+        #     return: the result of the notion database
+        #     """
+        #     try:
+        #         # Make API call to Notion Agent
+        #         data = {
+        #             'query': query,
+        #             'google_api_key': self.api_keys.api_keys['google_api_key'],
+        #             'openai_api_key': self.api_keys.api_keys['openai_api_key'],
+        #             'composio_key': self.api_keys.api_keys['composio_key']
+        #         }
                 
-                headers = {
-                    'Authorization': f'Bearer {self.api_keys.api_keys["hf_token"]}'
-                }
+        #         headers = {
+        #             'Authorization': f'Bearer {self.api_keys.api_keys["hf_token"]}'
+        #         }
                 
-                response = requests.post(f"{self.notion_agent_api_url}/chat", data=data, headers=headers)
-                response.raise_for_status()
-                result = response.json()
+        #         response = requests.post(f"{self.notion_agent_api_url}/chat", data=data, headers=headers)
+        #         response.raise_for_status()
+        #         result = response.json()
             
-                ctx.deps.agents_output['notion_agent_tool'] = result.get('response')
+        #         ctx.deps.agents_output['notion_agent_tool'] = result.get('response')
                 
-                return str(result.get('response'))
-            except Exception as e:
-                return f"Error calling Notion Agent API: {str(e)}"
+        #         return str(result.get('response'))
+        #     except Exception as e:
+        #         return f"Error calling Notion Agent API: {str(e)}"
             
-        async def reset_notion_agent_tool():
-            """
-            Use this tool to reset the notion agent when it is not working as expected
-            """
-            try:
-                headers = {
-                    'Authorization': f'Bearer {self.api_keys.api_keys["hf_token"]}'
-                }
+        # async def reset_notion_agent_tool():
+        #     """
+        #     Use this tool to reset the notion agent when it is not working as expected
+        #     """
+        #     try:
+        #         headers = {
+        #             'Authorization': f'Bearer {self.api_keys.api_keys["hf_token"]}'
+        #         }
                 
-                response = requests.post(f"{self.notion_agent_api_url}/reset", headers=headers)
-                response.raise_for_status()
-                result = response.json()
-                return result.get('message')
-            except Exception as e:
-                return f"Error resetting Notion Agent: {str(e)}"
+        #         response = requests.post(f"{self.notion_agent_api_url}/reset", headers=headers)
+        #         response.raise_for_status()
+        #         result = response.json()
+        #         return result.get('message')
+        #     except Exception as e:
+        #         return f"Error resetting Notion Agent: {str(e)}"
         
         async def find_images_tool(ctx: RunContext[Deps],query:str):
             """Search for images using this tool, this tool can search one image at a time
@@ -314,16 +321,39 @@ class Cortana_agent:
 
             
             return f'the result of the code execution is {res.get("output") if res.get("output") else "no result"}'
+      
+        #mpc servers
+        self.notion_mcp_server=MCPServerStreamableHTTP(self.notion_agent_mpc_url)
+        
+        self._mcp_context_manager = None
+        self._is_connected = False
+        #agent
         @dataclass
         class Cortana_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        self.agent=Agent(llms['pydantic_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool, find_images_tool, code_execution_tool, notion_agent_tool, reset_notion_agent_tool], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+
+        self.agent=Agent(llms['mcp_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), google_agent_tool, Memory_tool, reset_google_agent_tool, outlook_agent_tool, reset_outlook_agent_tool, find_images_tool, code_execution_tool], mcp_servers=[self.notion_mcp_server], system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you have the current time and the user query, you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
     
-    def chat(self, query:any):
+    async def connect(self):
+        """Establish persistent connection to MCP server"""
+        if not self._is_connected:
+            self._mcp_context_manager = self.agent.run_mcp_servers()
+            await self._mcp_context_manager.__aenter__()
+            self._is_connected = True
+            print("Connected to MCP server")
+
+    async def disconnect(self):
+        """Close the MCP server connection"""
+        if self._is_connected and self._mcp_context_manager:
+            await self._mcp_context_manager.__aexit__(None, None, None)
+            self._is_connected = False
+            self._mcp_context_manager = None
+            print("Disconnected from MCP server")
+    async def chat(self, query:any):
         """
         # Chat Function Documentation
 
@@ -374,10 +404,12 @@ class Cortana_agent:
         cortana_agent.memory.messages
         ```
         """
-
-        result=self.agent.run_sync(f'The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, the user query: {query}', deps=self.deps, message_history=self.memory.messages)
+        if not self._is_connected:
+            await self.connect()
+        result=await self.agent.run(query, deps=self.deps, message_history=self.memory.messages)
         self.memory.messages=result.all_messages()
         return result.output
+    
     def reset(self):
         """
         Resets the Cortana agent to its initial state.
@@ -388,3 +420,12 @@ class Cortana_agent:
         self.memory.messages=[]
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
         return f'Cortana has been reset'
+    
+    async def __aenter__(self):
+        """Async context manager entry"""
+        await self.connect()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        await self.disconnect()
