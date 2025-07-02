@@ -10,6 +10,7 @@ import os
 import requests
 import hashlib
 import asyncio
+from dataclasses import dataclass
 load_dotenv()
 
 import uvicorn
@@ -76,7 +77,13 @@ class APIDocumentation(BaseModel):
     version: str
     description: str
     endpoints: List[EndpointInfo]
-
+mpc_server_urls={
+    'notion_mcp_server': os.getenv('notion_mcp_server'),
+    'outlook_mcp_server': os.getenv('outlook_mcp_server'),
+    'google_task_mcp_server': os.getenv('google_task_mcp_server'),
+    'google_calendar_mcp_server': os.getenv('google_calendar_mcp_server'),
+    'gmail_mcp_server': os.getenv('gmail_mcp_server')
+}
 class KeyCache:
     def __init__(self):
         self._last_keys_hash = None
@@ -98,7 +105,7 @@ class KeyCache:
             # Filter out None values for initialization
             init_keys = {k: v for k, v in api_keys.items() if v is not None}
             # Pass the entire dictionary as a single parameter
-            self._cortana = Cortana_agent(api_keys=init_keys, notion_agent_mpc_url=os.getenv('notion_mcp_server'))
+            self._cortana = Cortana_agent(api_keys=init_keys, mpc_server_urls=mpc_server_urls)
             await self._cortana.connect()
             self._last_keys_hash = current_hash
         
@@ -162,10 +169,11 @@ async def chat(
             if file_obj is not None:
                 contents = await file_obj.read()
                 binary_content = BinaryContent(data=contents, media_type=file_obj.content_type)
-                class File_agent_output(BaseModel):
+                @dataclass
+                class File_agent_output:
                     text: str = Field(description="the text of the file")
                 model=GoogleModel('gemini-2.5-flash', provider=GoogleProvider(api_key=google_api_key))
-                file_agent=Agent(model, output_type=File_agent_output, system_prompt="you are a converter that can convert the audio or document to a text string")
+                file_agent=Agent(model, output_type=File_agent_output, system_prompt="you are a converter that can convert the audio or document to a text string, do not answer the questions, you only transcribe the audio or convert the file to a text string")
                 result=await file_agent.run([binary_content])
                 inputs.append(result.output.text)
                 await file_obj.close()
