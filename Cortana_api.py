@@ -77,13 +77,14 @@ class APIDocumentation(BaseModel):
     version: str
     description: str
     endpoints: List[EndpointInfo]
-mpc_server_urls={
-    'notion_mcp_server': os.getenv('notion_mcp_server'),
-    'outlook_mcp_server': os.getenv('outlook_mcp_server'),
-    'google_task_mcp_server': os.getenv('google_task_mcp_server'),
-    'google_calendar_mcp_server': os.getenv('google_calendar_mcp_server'),
-    'gmail_mcp_server': os.getenv('gmail_mcp_server')
-}
+mpc_server_urls=[
+    {'url': os.getenv('notion_mcp_server'), 'name': 'notion_mcp_server', 'type': 'http', 'headers': None},
+    {'url': os.getenv('outlook_mcp_server'), 'name': 'outlook_mcp_server', 'type': 'http', 'headers': None},
+    {'url': os.getenv('google_task_mcp_server'), 'name': 'google_task_mcp_server', 'type': 'http', 'headers': None},
+    {'url': os.getenv('google_calendar_mcp_server'), 'name': 'google_calendar_mcp_server', 'type': 'http', 'headers': None},
+    {'url': os.getenv('gmail_mcp_server'), 'name': 'gmail_mcp_server', 'type': 'http', 'headers': None}
+]
+
 class KeyCache:
     def __init__(self):
         self._last_keys_hash = None
@@ -112,8 +113,18 @@ class KeyCache:
         return self._cortana
     async def reset(self):
         if self._cortana:
-            await self._cortana.disconnect()
-            self._cortana.reset()
+            try:
+                await self._cortana.disconnect()
+                self._cortana.reset()
+            except Exception as e:
+                # If disconnect fails, we'll just force reset the cache
+                print(f"Error during disconnect: {e}")
+                self._cortana = None
+        self._last_keys_hash = None
+    
+    def force_reset(self):
+        """Force reset without attempting to disconnect - useful when async context is problematic"""
+        self._cortana = None
         self._last_keys_hash = None
 # Initialize key cache
 key_cache = KeyCache()
@@ -232,7 +243,12 @@ async def reset_cortana():
         await key_cache.reset()
         return {"status": "success", "message": "Cortana memory reset successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # If normal reset fails, try force reset as fallback
+        try:
+            key_cache.force_reset()
+            return {"status": "success", "message": "Cortana memory force reset successfully (fallback used)"}
+        except Exception as fallback_e:
+            raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}, Force reset also failed: {str(fallback_e)}")
 
 @app.post("/text-to-speech")
 async def text_to_speech(

@@ -8,22 +8,12 @@ from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerSSE, MCPServerStdio
 from dataclasses import dataclass
 from datetime import datetime
 from pydantic import Field
 from google import genai
 from google.genai import types
-import json
-import os
-from dotenv import load_dotenv
-import asyncio
-load_dotenv()
-# import nest_asyncio
-# nest_asyncio.apply()
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-from langchain_openai import ChatOpenAI
 
 
 @dataclass
@@ -42,25 +32,39 @@ class Deps:
     google_agent_output: dict
     
 class Cortana_agent:
-    def __init__(self, api_keys:dict, mpc_server_urls:dict = {}):
+    def __init__(self, api_keys:dict, mpc_server_urls:list = [], mpc_stdio_commands:list = []):
         """
         Args:
             
             api_keys (dict): The API keys to use as a dictionary
-            google_agent_api_url (str): The URL of the Google Agent API
-            outlook_mpc_url (str): The URL of the Outlook Agent API
-            notion_agent_mpc_url (str): The URL of the Notion Agent API
-            
+            mpc_server_urls (list): The list of dicts containing the url and the name
+              of the mpc server and the type of connection, and the bearer token if necessary
+              example:
+              [
+                {
+                  'url': 'http://localhost:8000',
+                  'name': 'mcp_server_1',
+                  'type': 'http','SSE'
+                  'headers': {'Authorization': 'Bearer 1234567890'} #optional or None
+                }
+              ]
+            mpc_stdio_commands (list): The list of commands to use with the stdio mpc server
+              example:
+              [
+                {
+                  'name': 'memory',
+                  'command': 'npx', 'docker', 'npm', 'python'
+                  'args': ['-y', '@modelcontextprotocol/server-memory']
+                }
+              ]
         """
-        GEMINI_MODEL='gemini-2.0-flash'
+        
         self.api_keys=Api_keys(api_keys=api_keys)
         
         self.mpc_server_urls = mpc_server_urls
-       
+        self.mpc_stdio_commands = mpc_stdio_commands
         # tools
         llms={'pydantic_llm':GoogleModel('gemini-2.5-flash', provider=GoogleProvider(api_key=self.api_keys.api_keys['google_api_key'])),
-              'langchain_llm':ChatGoogleGenerativeAI(google_api_key=self.api_keys.api_keys['google_api_key'], model=GEMINI_MODEL, temperature=0.3),
-              'openai_llm':ChatOpenAI(model='gpt-4.1-nano',api_key=self.api_keys.api_keys['openai_api_key']),
               'mcp_llm':OpenAIModel('gpt-4.1-mini',provider=OpenAIProvider(api_key=self.api_keys.api_keys['openai_api_key']))}
         
         async def Memory_tool(ctx: RunContext[Deps], query:str,tool:str):
@@ -156,10 +160,20 @@ class Cortana_agent:
             return f'the result of the code execution is {res.get("output") if res.get("output") else "no result"}'
         
         #mpc servers
-        mpc_servers=[]
+        self.mpc_servers=[]
         for mpc_server_url in self.mpc_server_urls:
-            mpc_servers.append(MCPServerStreamableHTTP(self.mpc_server_urls[mpc_server_url]))
-                    
+            if mpc_server_url['type'] == 'http':
+                if mpc_server_url['headers'] is not None:
+                    self.mpc_servers.append(MCPServerStreamableHTTP(url=mpc_server_url['url'], headers=mpc_server_url['headers']))
+                else:
+                    self.mpc_servers.append(MCPServerStreamableHTTP(mpc_server_url['url']))
+            elif mpc_server_url['type'] == 'SSE':
+                if mpc_server_url['headers'] is not None:
+                    self.mpc_servers.append(MCPServerSSE(url=mpc_server_url['url'], headers=mpc_server_url['headers']))
+                else:
+                    self.mpc_servers.append(MCPServerSSE(mpc_server_url['url']))
+        for mpc_stdio_command in self.mpc_stdio_commands:
+            self.mpc_servers.append(MCPServerStdio(mpc_stdio_command['command'], mpc_stdio_command['args']))                 
         
         self._mcp_context_manager = None
         self._is_connected = False
@@ -169,7 +183,7 @@ class Cortana_agent:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
 
-        self.agent=Agent(llms['mcp_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), Memory_tool, find_images_tool, code_execution_tool], mcp_servers=mpc_servers, system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(llms['mcp_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), Memory_tool, find_images_tool, code_execution_tool], mcp_servers=self.mpc_servers, system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you have the current time and the user query, you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
@@ -180,15 +194,26 @@ class Cortana_agent:
             self._mcp_context_manager = self.agent.run_mcp_servers()
             await self._mcp_context_manager.__aenter__()
             self._is_connected = True
-            return "Connected to MCP server"
+            print("Connected to MCP server")
 
     async def disconnect(self):
         """Close the MCP server connection"""
         if self._is_connected and self._mcp_context_manager:
-            await self._mcp_context_manager.__aexit__(None, None, None)
-            self._is_connected = False
-            self._mcp_context_manager = None
-            return "Disconnected from MCP server"
+            try:
+                await self._mcp_context_manager.__aexit__(None, None, None)
+                print("Disconnected from MCP server")
+            except RuntimeError as e:
+                if "Attempted to exit cancel scope in a different task" in str(e):
+                    # This is expected when disconnecting from a different task context
+                    print("MCP server disconnected (task context changed)")
+                else:
+                    raise e
+            except Exception as e:
+                print(f"Error during MCP disconnect: {e}")
+            finally:
+                self._is_connected = False
+                self._mcp_context_manager = None
+                
     async def chat(self, query:any):
         """
         # Chat Function Documentation
