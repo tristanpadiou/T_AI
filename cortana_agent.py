@@ -79,7 +79,7 @@ class Cortana_agent:
             
             
             answer_question_agent=Agent(llms['pydantic_llm'], instructions="answer the question based on the information provided")
-            result= answer_question_agent.run_sync(f"answer the question based on the information provided: {history} and the query: {query}")
+            result= await answer_question_agent.run(f"answer the question based on the information provided: {history} and the query: {query}")
             return result.output
 
 
