@@ -28,8 +28,6 @@ class Message_state:
 @dataclass
 class Deps:
     agents_output: dict
-    mail_inbox: dict
-    google_agent_output: dict
     
 class Cortana_agent:
     def __init__(self, api_keys:dict, mpc_server_urls:list = [], mpc_stdio_commands:list = []):
@@ -66,29 +64,7 @@ class Cortana_agent:
         # tools
         llms={'pydantic_llm':GoogleModel('gemini-2.5-flash', provider=GoogleProvider(api_key=self.api_keys.api_keys['google_api_key'])),
               'mcp_llm':OpenAIModel('gpt-4.1-mini',provider=OpenAIProvider(api_key=self.api_keys.api_keys['openai_api_key']))}
-        
-        async def Memory_tool(ctx: RunContext[Deps], query:str,tool:str):
-            """
-            Use this tool to dive into the memory database of the agents to answer questions based on previous information provided from previous tool calls
-            this tool can also be used to get more details about a specific email or task.
-            The database is dictionary.
-            Args:
-                query (str): The query related to the Memory_tool and its capabilities
-                tool (str): The tool that was used to get the information either google_agent_tool or outlook_agent_tool
-                
-            Returns:
-                str: The response from the Memory_tool
-            """
-            history=ctx.deps.agents_output.get(tool)
-            
-            
-            answer_question_agent=Agent(llms['pydantic_llm'], instructions="answer the question based on the information provided")
-            result= await answer_question_agent.run(f"answer the question based on the information provided: {history} and the query: {query}")
-            return result.output
-
-
-
-      
+    
         
         async def find_images_tool(ctx: RunContext[Deps],query:str):
             """Search for images using this tool, this tool can search one image at a time
@@ -183,10 +159,10 @@ class Cortana_agent:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
 
-        self.agent=Agent(llms['mcp_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), Memory_tool, find_images_tool, code_execution_tool], mcp_servers=self.mpc_servers, system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
+        self.agent=Agent(llms['mcp_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), find_images_tool, code_execution_tool], mcp_servers=self.mpc_servers, system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you have the current time and the user query, you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
-        self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
+        self.deps=Deps(agents_output={})
     
     async def connect(self):
         """Establish persistent connection to MCP server"""
@@ -270,6 +246,11 @@ class Cortana_agent:
             
         result=await self.agent.run(query, deps=self.deps, message_history=self.memory.messages)
         self.memory.messages=result.all_messages()
+        
+        # Keep only the last 50 messages if the list is longer than 50
+        if len(self.memory.messages) > 50:
+            self.memory.messages = self.memory.messages[-50:]
+        
         return result.output
     
     def reset(self):
@@ -280,7 +261,7 @@ class Cortana_agent:
             str: A confirmation message indicating that the agent has been reset.
         """
         self.memory.messages=[]
-        self.deps=Deps(agents_output={}, google_agent_output={},mail_inbox={})
+        self.deps=Deps(agents_output={})
         return f'Cortana has been reset'
     
     async def __aenter__(self):
