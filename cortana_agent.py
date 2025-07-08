@@ -28,15 +28,30 @@ class Message_state:
 @dataclass
 class Deps:
     agents_output: dict
+    user:str
     
 class Cortana_agent:
     def __init__(self, api_keys:dict, mpc_server_urls:list = [], mpc_stdio_commands:list = []):
         """
         Args:
-            
-            api_keys (dict): The API keys to use as a dictionary
-            mpc_server_urls (list): The list of dicts containing the url and the name
-              of the mpc server and the type of connection, and the bearer token if necessary
+            api_keys (dict): The API keys to use as a dictionary, the keys are:
+            \n
+            example:
+            {
+                'google_api_key': (str): The Google API key,
+
+                'openai_api_key': (str): The OpenAI API key,
+
+                'tavily_key': (str): The Tavily API key,
+
+                'pse': (str): The Google Custom Search Engine ID,
+
+                
+            }
+            mpc_server_urls (list): The list of dicts containing the url\n
+            and the name of the mpc server and the type of connection, \n
+            and the bearer token if necessary
+              \n
               example:
               [
                 {
@@ -47,6 +62,7 @@ class Cortana_agent:
                 }
               ]
             mpc_stdio_commands (list): The list of commands to use with the stdio mpc server
+              \n
               example:
               [
                 {
@@ -162,7 +178,7 @@ class Cortana_agent:
         self.agent=Agent(llms['mcp_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), find_images_tool, code_execution_tool], mcp_servers=self.mpc_servers, system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
                           you have the current time and the user query, you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
         self.memory=Message_state(messages=[])
-        self.deps=Deps(agents_output={})
+        self.deps=Deps(agents_output={}, user='')
     
     async def connect(self):
         """Establish persistent connection to MCP server"""
@@ -261,7 +277,7 @@ class Cortana_agent:
             str: A confirmation message indicating that the agent has been reset.
         """
         self.memory.messages=[]
-        self.deps=Deps(agents_output={})
+        self.deps=Deps(agents_output={}, user='')
         return f'Cortana has been reset'
     
     async def __aenter__(self):

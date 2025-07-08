@@ -151,6 +151,7 @@ async def health_check():
 @app.post("/chat")
 async def chat(
     query: str = Form(...),
+    user: str = Form(None),
     google_api_key: str = Form(...),
     tavily_key: str = Form(...),
     pse: str = Form(None),
@@ -164,7 +165,7 @@ async def chat(
 ):
     try:
         # Create a list of inputs starting with the query
-        inputs = [f'The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, the user query: {query}']
+        inputs = [f'The current time is {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, the user query: {query}, the user is: {user if user is not None else "unknown"}']
         
         # Handle multiple images
         if images:
@@ -201,7 +202,7 @@ async def chat(
         # Get or initialize Cortana instance based on keys
         try:
             cortana = await key_cache.get_cortana(api_keys)
-            
+            cortana.deps.user=user
         except Exception as e:
             
             raise HTTPException(status_code=500, detail=f"Error getting Cortana instance: {str(e)}")
@@ -289,6 +290,7 @@ API for interacting with Cortana AI Assistant, including chat, text-to-speech, a
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | query | string | Yes | The text query to process |
+| user | string | No | The user of the query |
 | google_api_key | string | Yes | Google API key for search functionality |
 | tavily_key | string | Yes | Tavily API key for search functionality |
 | pse | string | No | Personal search engine identifier |
@@ -304,6 +306,7 @@ API for interacting with Cortana AI Assistant, including chat, text-to-speech, a
 ```json
 {
     "query": "What's the weather like?",
+    "user": "John Doe",
     "google_api_key": "your_google_api_key",
     "tavily_key": "your_tavily_key",
     "include_audio": "true",
