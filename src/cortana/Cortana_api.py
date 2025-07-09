@@ -1,4 +1,4 @@
-from cortana_agent import Cortana_agent
+from .cortana_agent import Cortana_agent
 from fastapi import FastAPI, HTTPException, Form, File, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
