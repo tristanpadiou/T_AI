@@ -264,8 +264,8 @@ class Cortana_agent:
         self.memory.messages=result.all_messages()
         
         # Keep only the last 50 messages if the list is longer than 50
-        if len(self.memory.messages) > 50:
-            self.memory.messages = self.memory.messages[-50:]
+        # if len(self.memory.messages) > 50:
+        #     self.memory.messages = self.memory.messages[-50:]
         
         return result.output
     
