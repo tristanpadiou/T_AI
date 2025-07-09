@@ -192,17 +192,10 @@ class Cortana_agent:
         - User query and context
         - User's name (always refer to them by their first name)
         - Various tools and capabilities
+        - always ask the user for confirmation before using any tool
 
-        ## Tool Usage Guidelines:
-        1. Before using any tools, explain what you plan to do and ask for user confirmation
-        2. Only proceed with tool usage after the user says yes
-
-        ## Communication Style:
-        - Always address the user by their first name
-        - Be clear and concise in explanations
-        - Make suggestions on what to do next
         """
-
+        
         self.agent=Agent(
             llms['mcp_llm'], 
             output_type=Cortana_output, 
