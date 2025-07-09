@@ -61,7 +61,7 @@ uv sync --no-install-project
 
 ## Key Files
 
-- `pyproject.toml` - Project configuration and dependencies
+- `pyproject.toml` - Project configuration and dependencies (Hide the readme part for hugging face spaces)
 - `uv.lock` - Locked dependency versions (132KB, down from 334KB)
 - `requirements.txt` - Simplified fallback dependencies (4 lines)
 - `.venv/` - Virtual environment (auto-created by uv)

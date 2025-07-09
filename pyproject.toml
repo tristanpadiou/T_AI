@@ -6,7 +6,8 @@ build-backend = "hatchling.build"
 name = "cortana-agent"
 version = "0.1.0"
 description = "Cortana - A Helpful AI Assistant with MCP support, image search, and code execution capabilities"
-readme = "README.md"
+# Make README path relative to project root (hide for hugging face spaces)
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.13"
 license = {text = "MIT"}
 authors = [
@@ -49,9 +50,6 @@ Documentation = "https://github.com/yourusername/cortana-agent#readme"
 Repository = "https://github.com/yourusername/cortana-agent"
 "Bug Tracker" = "https://github.com/yourusername/cortana-agent/issues"
 
-[project.scripts]
-cortana = "src.cortana.cortana_agent:main"
-
 # Hatchling configuration
 [tool.hatch.build.targets.wheel]
 packages = ["src/cortana"]
@@ -70,14 +68,6 @@ dev-dependencies = [
 
 [tool.uv.sources]
 # Add any specific source configurations here if needed
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["cortana*"]
-exclude = ["tests*", "notebooks*"]
-
-[tool.setuptools.package-data]
-cortana_agent = ["*.txt", "*.md", "*.yml", "*.yaml"]
 
 [tool.black]
 line-length = 88
