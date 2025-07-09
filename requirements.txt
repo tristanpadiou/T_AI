@@ -29,7 +29,7 @@ Deprecated==1.2.18
 distro==1.9.0
 eval_type_backport==0.2.2
 executing==2.2.0
-fasta2a==0.2.18
+fasta2a==0.4.0
 fastapi==0.115.12
 fastavro==1.11.1
 filelock==3.18.0
@@ -39,7 +39,7 @@ fsspec==2025.5.1
 google-ai-generativelanguage==0.6.18
 google-api-core==2.24.2
 google-auth==2.40.2
-google-genai==1.17.0
+google-genai==1.24.0
 googleapis-common-protos==1.70.0
 greenlet==3.2.2
 griffe==1.7.3
@@ -113,9 +113,9 @@ pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.22
 pydantic==2.11.2
-pydantic-ai==0.2.18
-pydantic-evals==0.2.18
-pydantic-graph==0.2.18
+pydantic-ai==0.4.0
+pydantic-evals==0.4.0
+pydantic-graph==0.4.0
 pydantic-settings==2.9.1
 pydantic_core==2.33.1
 Pygments==2.19.1

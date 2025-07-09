@@ -151,6 +151,12 @@ class Cortana_agent:
             
             return f'the result of the code execution is {res.get("output") if res.get("output") else "no result"}'
         
+
+        #summarize old messages
+        self.summarize_agent=Agent(llms['pydantic_llm'],instructions='Summarize this conversation, omitting small talk and unrelated topics. Focus on the technical discussion and next steps.')
+
+
+        
         #mpc servers
         self.mpc_servers=[]
         for mpc_server_url in self.mpc_server_urls:
@@ -175,8 +181,35 @@ class Cortana_agent:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
 
-        self.agent=Agent(llms['mcp_llm'], output_type=Cortana_output, tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), find_images_tool, code_execution_tool], mcp_servers=self.mpc_servers, system_prompt="you are Cortana, a helpful assistant that can help with a wide range of tasks,\
-                          you have the current time and the user query, you can use the tools provided to you if necessary to help the user with their queries, ask how you can help the user, sometimes the user will ask you not to use the tools, in this case you should not use the tools")
+        instructions = """
+        # You are Cortana - A Helpful AI Assistant
+
+        ## Your Role:
+        You are Cortana, a helpful assistant capable of handling a wide range of tasks.
+
+        ## Available Information:
+        - Current time and date
+        - User query and context
+        - User's name (always refer to them by their first name)
+        - Various tools and capabilities
+
+        ## Tool Usage Guidelines:
+        1. Before using any tools, explain what you plan to do and ask for user confirmation
+        2. Only proceed with tool usage after the user says yes
+
+        ## Communication Style:
+        - Always address the user by their first name
+        - Be clear and concise in explanations
+        - Make suggestions on what to do next
+        """
+
+        self.agent=Agent(
+            llms['mcp_llm'], 
+            output_type=Cortana_output, 
+            tools=[tavily_search_tool(self.api_keys.api_keys['tavily_key']), find_images_tool, code_execution_tool],
+            mcp_servers=self.mpc_servers, 
+            instructions=instructions
+        )
         self.memory=Message_state(messages=[])
         self.deps=Deps(agents_output={}, user='')
     
@@ -261,11 +294,15 @@ class Cortana_agent:
             await self.connect()
             
         result=await self.agent.run(query, deps=self.deps, message_history=self.memory.messages)
-        self.memory.messages=result.all_messages()
         
-        # Keep only the last 50 messages if the list is longer than 50
-        # if len(self.memory.messages) > 50:
-        #     self.memory.messages = self.memory.messages[-50:]
+        #summarize old messages
+        if len(result.all_messages()) > 20:
+                    oldest_messages = result.all_messages()[:15]
+                    summary = await self.summarize_agent.run(f'oldest messages: {oldest_messages}')
+                    # Return the last message and the summary
+                    self.memory.messages=summary.new_messages() + result.new_messages()
+        else:
+            self.memory.messages=result.all_messages()
         
         return result.output
     
