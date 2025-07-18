@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import requests
 import httpx
 from pydantic_ai import Agent, RunContext, format_as_xml
@@ -231,7 +232,21 @@ class Cortana_agent:
             finally:
                 self._is_connected = False
                 self._mcp_context_manager = None
-                
+    #summarize old messages
+    async def summarizer(self,result):
+        """
+        function to summarize memory.messages when it is too long
+        args:
+            result: the models output
+        
+        """
+        if len(result.all_messages()) > 20:
+                    oldest_messages = result.all_messages()[:15]
+                    summary = await self.summarize_agent.run(f'oldest messages: {oldest_messages}')
+                    # Return the last message and the summary
+                    self.memory.messages=summary.new_messages() + result.new_messages()
+        else:
+            self.memory.messages=result.all_messages()
     async def chat(self, query:any):
         """
         # Chat Function Documentation
@@ -288,15 +303,9 @@ class Cortana_agent:
             
         result=await self.agent.run(query, deps=self.deps, message_history=self.memory.messages)
         
-        #summarize old messages
-        if len(result.all_messages()) > 20:
-                    oldest_messages = result.all_messages()[:15]
-                    summary = await self.summarize_agent.run(f'oldest messages: {oldest_messages}')
-                    # Return the last message and the summary
-                    self.memory.messages=summary.new_messages() + result.new_messages()
-        else:
-            self.memory.messages=result.all_messages()
-        
+        # Start summarizer in background - don't wait for it
+        asyncio.create_task(self.summarizer(result))
+
         return result.output
     
     def reset(self):
