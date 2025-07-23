@@ -4,7 +4,7 @@ import requests
 import httpx
 from pydantic_ai import Agent, RunContext, format_as_xml
 from pydantic_ai.common_tools.tavily import tavily_search_tool
-from pydantic_ai.messages import ModelMessage
+from pydantic_ai.messages import ModelMessage, ModelRequest,ModelResponse
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.models.openai import OpenAIModel
@@ -241,10 +241,19 @@ class Cortana_agent:
         
         """
         if len(result.all_messages()) > 20:
-                    oldest_messages = result.all_messages()[:15]
-                    summary = await self.summarize_agent.run(f'oldest messages: {oldest_messages}')
-                    # Return the last message and the summary
-                    self.memory.messages=summary.new_messages() + result.new_messages()
+            oldest_messages=[]
+            for i in result.all_messages()[:15]:
+                
+                if isinstance(i,ModelRequest):
+                    if isinstance(i.parts[0].content,list):
+                        oldest_messages.append({'user_query':i.parts[0].content[0]})
+                    else:
+                        oldest_messages.append({'user_query':i.parts[0].content})
+                elif isinstance(i,ModelResponse):
+                    oldest_messages.append({'model_response':i})
+            summary = await self.summarize_agent.run(f'oldest messages: {str(oldest_messages)}')
+            # Return the last message and the summary
+            self.memory.messages=summary.new_messages() + result.new_messages()
         else:
             self.memory.messages=result.all_messages()
     async def chat(self, query:any):
