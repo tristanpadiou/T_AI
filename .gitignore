@@ -5,3 +5,4 @@
 __pycache__
 .composio.lock
 src/cortana_agent.egg-info/
+dist/
