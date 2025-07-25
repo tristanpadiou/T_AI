@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cortana-agent"
-version = "0.1.0"
+version = "0.1.1"
 description = "Cortana - A Helpful AI Assistant with MCP support, image search, and code execution capabilities"
 # Make README path relative to project root (hide for hugging face spaces)
 readme = {file = "README.md", content-type = "text/markdown"}
