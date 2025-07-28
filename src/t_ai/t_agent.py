@@ -324,16 +324,6 @@ class TAgent:
        
         return result.output
     
-    def reset(self):
-        """
-        Resets the Cortana agent to its initial state.
-
-        Returns:
-            str: A confirmation message indicating that the agent has been reset.
-        """
-        self.memory.messages=[]
-        self.deps=Deps(agents_output={}, user='')
-        return f'Cortana has been reset'
     
     async def __aenter__(self):
         """Async context manager entry"""
