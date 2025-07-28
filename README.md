@@ -1,16 +1,17 @@
-# Cortana - AI Assistant with MCP Support
+# T_AI - AI Agent Framework
 
-A powerful AI assistant built with pydantic-ai, featuring MCP (Model Context Protocol) server integration, Google tools, code execution capabilities, and advanced memory management.
+A powerful framework for building AI agents with **MCP (Model Context Protocol)** integration, **tools**, **memory management**, and **dependency handling**. T_AI simplifies the creation of sophisticated AI agents by providing a unified interface for multiple LLMs, external tools, and advanced conversation management.
 
-## 🚀 Features
+## 🚀 Key Features
 
-- **Multi-LLM Support**: Compatible with Google's Gemini and OpenAI models
-- **MCP Server Integration**: Connect to external tools and services via MCP protocol
-- **Google Tools**: Image search and code execution capabilities
-- **Memory Management**: Automatic conversation summarization for long sessions
-- **Media Support**: Handle audio, images, and PDF files
-- **Async/Await**: Full asynchronous support for better performance
-- **Extensible**: Easy to add custom tools and integrations
+- **🔗 MCP Integration**: Seamless connection to external tools and services via Model Context Protocol
+- **🛠️ Tool System**: Built-in Google tools (image search, code execution) and easy custom tool integration  
+- **🧠 Memory Management**: Intelligent conversation summarization for long-running sessions
+- **📦 Dependency Management**: Clean state management and user context handling
+- **🤖 Multi-LLM Support**: Compatible with Google Gemini, OpenAI, and Anthropic models
+- **📱 Media Support**: Handle text, audio, images, and PDF files seamlessly
+- **⚡ Async/Await**: Full asynchronous support for optimal performance
+- **🔌 Extensible**: Easy to extend with custom tools and integrations
 
 ## 📦 Installation
 
@@ -19,7 +20,7 @@ A powerful AI assistant built with pydantic-ai, featuring MCP (Model Context Pro
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd Cortana
+cd T_AI
 
 # Install using UV
 uv sync
@@ -37,30 +38,29 @@ pip install -e .
 pip install -r requirements.txt
 ```
 
-## 🔧 Dependencies
+## 🔧 Core Dependencies
 
 - **pydantic-ai >= 0.4.0**: Core AI framework
 - **tavily-python >= 0.5.1**: Web search capabilities
-- **ipykernel >= 6.30.0**: Jupyter notebook support
 
 ## 🚀 Quick Start
 
-### Basic Usage
+### Basic Agent Creation
 
 ```python
 import asyncio
-from cortana.cortana_agent import Cortana_agent
+from t_ai.t_agent import TAgent, Deps
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 
 # Initialize with Google Gemini
 llm = GoogleModel('gemini-2.5-flash', provider=GoogleProvider(api_key="your-api-key"))
-cortana = Cortana_agent(llm=llm)
+agent = TAgent(llm=llm)
 
-# Simple chat
+# Simple conversation
 async def main():
-    async with cortana:
-        response = await cortana.chat(["Hello, what can you help me with?"])
+    async with agent:
+        response = await agent.chat(["Hello, what can you help me with?"])
         print(f"UI Version: {response.ui_version}")
         print(f"Voice Version: {response.voice_version}")
 
@@ -74,61 +74,68 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 llm = OpenAIModel('gpt-4-mini', provider=OpenAIProvider(api_key="your-openai-key"))
-cortana = Cortana_agent(llm=llm)
+agent = TAgent(llm=llm)
 ```
 
-## 🛠️ Configuration Options
+## 🛠️ Framework Configuration
 
-### Cortana_agent Parameters
+### TAgent Parameters
 
 ```python
-cortana = Cortana_agent(
+agent = TAgent(
     llm=your_llm,                              # Required: pydantic-ai compatible model
+    deps=custom_deps,                          # Optional: Custom dependencies object
+    instructions="Custom instructions",        # Optional: Agent instructions
     tools=[],                                  # Optional: List of custom tools
     mcp_servers=[],                            # Optional: List of MCP servers
     summarizer=False,                          # Optional: Enable conversation summarization
     custom_summarizer_agent=None,              # Optional: Custom summarizer agent
     memory_length=20,                          # Optional: Messages before summarization
-    memory_summarizer_length=15                # Optional: Messages to summarize
+    memory_summarizer_length=15,               # Optional: Messages to summarize
+    use_memory=True                            # Optional: Enable/disable memory
 )
 ```
 
 ## 🔗 MCP Server Integration
 
-### Adding MCP Servers
+### Using MCP Helper (Recommended)
 
 ```python
-from cortana.utils.helper_functions import MCP_server_helper
-from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerSSE, MCPServerStdio
+from t_ai.utils.helper_functions import MCP_server_helper
+from t_ai.t_agent import TAgent
 
-# Using helper class
+# Create MCP helper
 mcp_helper = MCP_server_helper()
+
+# Add different types of MCP servers
 mcp_helper.add_mpc_server(type='http', mpc_server_url='https://mcp.notion.com/mcp')
 mcp_helper.add_mpc_server(type='sse', mpc_server_url='https://mcp.notion.com/sse')
 mcp_helper.add_mpc_server(type='stdio', command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'])
 
-# Initialize Cortana with MCP servers
-cortana = Cortana_agent(llm=llm, mcp_servers=mcp_helper.get_mpc_servers())
+# Initialize agent with MCP servers
+agent = TAgent(llm=llm, mcp_servers=mcp_helper.get_mpc_servers())
 ```
 
 ### Direct MCP Server Setup
 
 ```python
+from pydantic_ai.mcp import MCPServerStreamableHTTP, MCPServerSSE, MCPServerStdio
+
 mcp_servers = [
-    MCPServerStreamableHTTP(url='https://mcp.notion.com/mcp', headers=None),
-    MCPServerSSE(url='https://mcp.notion.com/sse', headers=None),
-    MCPServerStdio(command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'], env=None)
+    MCPServerStreamableHTTP(url='https://mcp.notion.com/mcp'),
+    MCPServerSSE(url='https://mcp.notion.com/sse'),
+    MCPServerStdio(command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'])
 ]
 
-cortana = Cortana_agent(llm=llm, mcp_servers=mcp_servers)
+agent = TAgent(llm=llm, mcp_servers=mcp_servers)
 ```
 
-## 🛠️ Google Tools Integration
+## 🛠️ Built-in Tools
 
-### Image Search Tool
+### Google Image Search Tool
 
 ```python
-from cortana.PrebuiltTools.google_tools import search_images_tool
+from t_ai.PrebuiltTools.google_tools import search_images_tool
 
 # Setup image search
 image_tool = search_images_tool(
@@ -136,35 +143,37 @@ image_tool = search_images_tool(
     search_engine_id="your-custom-search-engine-id"
 )
 
-cortana = Cortana_agent(llm=llm, tools=[image_tool])
+agent = TAgent(llm=llm, tools=[image_tool])
 
 # Usage
-response = await cortana.chat(["Find me an image of a sunset"])
+response = await agent.chat(["Find me an image of a sunset"])
 ```
 
-### Code Execution Tool
+### Google Code Execution Tool
 
 ```python
-from cortana.PrebuiltTools.google_tools import code_execution_tool
+from t_ai.PrebuiltTools.google_tools import code_execution_tool
 
-# Setup code execution
+# Setup code execution  
 code_tool = code_execution_tool(api_key="your-gemini-api-key")
 
-cortana = Cortana_agent(llm=llm, tools=[code_tool])
+agent = TAgent(llm=llm, tools=[code_tool])
 
 # Usage
-response = await cortana.chat(["Calculate the factorial of 10 using Python"])
+response = await agent.chat(["Calculate the factorial of 10 using Python"])
 ```
 
 ### Combined Tools Example
 
 ```python
+from t_ai.PrebuiltTools.google_tools import search_images_tool, code_execution_tool
+
 tools = [
     search_images_tool(api_key=google_api_key, search_engine_id=search_engine_id),
     code_execution_tool(api_key=google_api_key)
 ]
 
-cortana = Cortana_agent(llm=llm, tools=tools)
+agent = TAgent(llm=llm, tools=tools)
 ```
 
 ## 💾 Memory Management
@@ -172,7 +181,7 @@ cortana = Cortana_agent(llm=llm, tools=tools)
 ### Enable Automatic Summarization
 
 ```python
-cortana = Cortana_agent(
+agent = TAgent(
     llm=llm,
     summarizer=True,                    # Enable summarization
     memory_length=20,                   # Summarize after 20 messages
@@ -190,26 +199,26 @@ custom_summarizer = Agent(
     instructions='Create detailed technical summaries focusing on code and solutions.'
 )
 
-cortana = Cortana_agent(
+agent = TAgent(
     llm=llm,
     summarizer=True,
     custom_summarizer_agent=custom_summarizer
 )
 ```
 
-### Accessing Memory and State
+### Memory and State Management
 
 ```python
 # Access conversation history
-messages = cortana.memory.messages
+messages = agent.memory.messages
 
-# Access agent state
-deps = cortana.deps
-user_name = cortana.deps.user
-agents_output = cortana.deps.agents_output
+# Access agent dependencies
+deps = agent.deps
+user_name = agent.deps.user
+agents_output = agent.deps.agents_output
 
-# Reset memory
-cortana.reset()
+# Reset agent state
+agent.reset()
 ```
 
 ## 📱 Media Support
@@ -217,7 +226,7 @@ cortana.reset()
 ### Text Input
 
 ```python
-response = await cortana.chat(["What's the weather like today?"])
+response = await agent.chat(["What's the weather like today?"])
 ```
 
 ### Image Input
@@ -229,7 +238,7 @@ from pydantic_ai.messages import BinaryContent
 with open("image.png", "rb") as f:
     image_data = f.read()
 
-response = await cortana.chat([
+response = await agent.chat([
     "What do you see in this image?",
     BinaryContent(data=image_data, media_type='image/png')
 ])
@@ -242,7 +251,7 @@ response = await cortana.chat([
 with open("audio.wav", "rb") as f:
     audio_data = f.read()
 
-response = await cortana.chat([
+response = await agent.chat([
     "Transcribe this audio",
     BinaryContent(data=audio_data, media_type='audio/wav')
 ])
@@ -255,7 +264,7 @@ response = await cortana.chat([
 with open("document.pdf", "rb") as f:
     pdf_data = f.read()
 
-response = await cortana.chat([
+response = await agent.chat([
     "Summarize this document",
     BinaryContent(data=pdf_data, media_type='application/pdf')
 ])
@@ -267,9 +276,9 @@ response = await cortana.chat([
 
 ```python
 async def main():
-    async with Cortana_agent(llm=llm, mcp_servers=mcp_servers) as cortana:
+    async with TAgent(llm=llm, mcp_servers=mcp_servers) as agent:
         # MCP servers are automatically connected
-        response = await cortana.chat(["Help me with my Notion workspace"])
+        response = await agent.chat(["Help me with my Notion workspace"])
         print(response.ui_version)
         # MCP servers are automatically disconnected
 ```
@@ -277,16 +286,30 @@ async def main():
 ### Manual Connection Management
 
 ```python
-cortana = Cortana_agent(llm=llm, mcp_servers=mcp_servers)
+agent = TAgent(llm=llm, mcp_servers=mcp_servers)
 
 # Connect manually
-await cortana.connect()
+await agent.connect()
 
 try:
-    response = await cortana.chat(["Hello"])
+    response = await agent.chat(["Hello"])
 finally:
     # Disconnect manually
-    await cortana.disconnect()
+    await agent.disconnect()
+```
+
+### Custom Dependencies
+
+```python
+from t_ai.t_agent import Deps
+
+# Create custom dependencies
+custom_deps = Deps(
+    agents_output={"previous_results": []},
+    user="Alice"
+)
+
+agent = TAgent(llm=llm, deps=custom_deps)
 ```
 
 ### Custom Tools
@@ -305,19 +328,19 @@ weather_tool = Tool(
     description='Get current weather for any location'
 )
 
-cortana = Cortana_agent(llm=llm, tools=[weather_tool])
+agent = TAgent(llm=llm, tools=[weather_tool])
 ```
 
-## 📝 Complete Example
+## 📝 Complete Framework Example
 
 ```python
 import asyncio
 import os
 from dotenv import load_dotenv
 
-from cortana.cortana_agent import Cortana_agent
-from cortana.utils.helper_functions import MCP_server_helper
-from cortana.PrebuiltTools.google_tools import search_images_tool, code_execution_tool
+from t_ai.t_agent import TAgent, Deps
+from t_ai.utils.helper_functions import MCP_server_helper
+from t_ai.PrebuiltTools.google_tools import search_images_tool, code_execution_tool
 
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
@@ -345,45 +368,47 @@ async def main():
         code_execution_tool(api_key=os.getenv('GOOGLE_API_KEY'))
     ]
     
-    # Initialize Cortana
-    cortana = Cortana_agent(
+    # Setup custom dependencies
+    deps = Deps(agents_output={}, user="Alice")
+    
+    # Initialize T_AI agent
+    agent = TAgent(
         llm=llm,
+        deps=deps,
         tools=tools,
         mcp_servers=mcp_helper.get_mpc_servers(),
         summarizer=True,
-        memory_length=20
+        memory_length=20,
+        instructions="You are a helpful AI assistant with access to various tools and services."
     )
     
     # Use context manager for automatic connection handling
-    async with cortana:
-        # Set user name
-        cortana.deps.user = "Alice"
-        
+    async with agent:
         # Text conversation
-        response = await cortana.chat(["Hello Cortana, what can you help me with?"])
-        print("Cortana:", response.voice_version)
+        response = await agent.chat(["Hello, what can you help me with?"])
+        print("Agent:", response.voice_version)
         
         # Math problem with code execution
-        response = await cortana.chat(["Calculate the sum of squares from 1 to 100"])
+        response = await agent.chat(["Calculate the sum of squares from 1 to 100"])
         print("Math Result:", response.ui_version)
         
         # Image search
-        response = await cortana.chat(["Find me an image of a beautiful landscape"])
+        response = await agent.chat(["Find me an image of a beautiful landscape"])
         print("Image Search:", response.ui_version)
         
         # Check conversation history
-        print(f"Total messages in memory: {len(cortana.memory.messages)}")
+        print(f"Total messages in memory: {len(agent.memory.messages)}")
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 🧪 Testing
+## 🧪 Testing and Development
 
 Run the included Jupyter notebooks to test different features:
 
 - `notebooks/cortana_test.ipynb`: Basic functionality testing
-- `notebooks/cort_mcp_test.ipynb`: MCP server integration testing
+- `notebooks/cort_mcp_test.ipynb`: MCP server integration testing  
 - `notebooks/cortana_voice_test.ipynb`: Voice/audio capabilities testing
 - `notebooks/memory_handling.ipynb`: Memory management testing
 
@@ -398,13 +423,25 @@ OPENAI_API_KEY=your_openai_api_key
 TAVILY_API_KEY=your_tavily_api_key
 ```
 
+## 🏗️ Architecture
+
+T_AI is built with a modular architecture:
+
+- **Core Agent (`TAgent`)**: Main framework class handling LLM interactions, memory, and coordination
+- **MCP Integration**: Support for Model Context Protocol servers (HTTP, SSE, stdio)
+- **Tool System**: Extensible tool framework with built-in Google tools
+- **Memory Management**: Intelligent conversation summarization and state management
+- **Dependencies**: Clean dependency injection for user context and shared state
+
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
 4. Add tests if applicable
-5. Submit a pull request
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ## 📄 License
 
@@ -414,5 +451,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For issues and questions:
 1. Check the notebooks in the `notebooks/` directory for examples
-2. Review the docstrings in the source code
+2. Review the docstrings in the source code  
 3. Open an issue on GitHub
+
+## 🙏 Acknowledgments
+
+- Built on top of [pydantic-ai](https://github.com/pydantic/pydantic-ai)
+- MCP (Model Context Protocol) integration
+- Google AI and OpenAI API support

@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cortana-agent"
-version = "0.1.1"
-description = "Cortana - A Helpful AI Assistant with MCP support, image search, and code execution capabilities"
+name = "T_AI"
+version = "0.1.0"
+description = "A Simplified Agent Framework to create ai agent with tools,mcps and memory/deps management"
 # Make README path relative to project root (hide for hugging face spaces)
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.13"
@@ -48,7 +48,7 @@ Repository = "https://github.com/yourusername/cortana-agent"
 
 # Hatchling configuration
 [tool.hatch.build.targets.wheel]
-packages = ["src/cortana"]
+packages = ["src/t_ai"]
 
 # UV configuration
 [tool.uv]
@@ -87,7 +87,7 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["cortana_agent", "utils"]
+known_first_party = ["t_agent", "utils","PrebuiltTools"]
 
 [tool.mypy]
 python_version = "3.13"
