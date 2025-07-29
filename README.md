@@ -1,6 +1,9 @@
 # T_AI - AI Agent Framework
 
 A powerful framework for building AI agents with **MCP (Model Context Protocol)** integration, **tools**, **memory management**, and **dependency handling**. T_AI simplifies the creation of sophisticated AI agents by providing a unified interface for multiple LLMs, external tools, and advanced conversation management.
+This framework is build on top of pydantic_ai, go check it out at:
+
+[https://ai.pydantic.dev/](https://ai.pydantic.dev/)
 
 ## 🚀 Key Features
 
@@ -14,6 +17,11 @@ A powerful framework for building AI agents with **MCP (Model Context Protocol)*
 - **🔌 Extensible**: Easy to extend with custom tools and integrations
 
 ## 📦 Installation
+
+### Available at pypi.com
+```bash
+pip install t-ai-project
+```
 
 ### Using UV (Recommended)
 
@@ -108,9 +116,9 @@ from t_ai.t_agent import TAgent
 mcp_helper = MCP_server_helper()
 
 # Add different types of MCP servers
-mcp_helper.add_mpc_server(type='http', mpc_server_url='https://mcp.notion.com/mcp')
-mcp_helper.add_mpc_server(type='sse', mpc_server_url='https://mcp.notion.com/sse')
-mcp_helper.add_mpc_server(type='stdio', command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'])
+mcp_helper.add_mcp_server(type='http', mcp_server_url='https://mcp.notion.com/mcp')
+mcp_helper.add_mcp_server(type='sse', mcp_server_url='https://mcp.notion.com/sse')
+mcp_helper.add_mcp_server(type='stdio', command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'])
 
 # Initialize agent with MCP servers
 agent = TAgent(llm=llm, mcp_servers=mcp_helper.get_mpc_servers())

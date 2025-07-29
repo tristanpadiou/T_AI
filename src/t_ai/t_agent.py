@@ -19,7 +19,7 @@ class Deps:
     user:str
     
 class TAgent:
-    def __init__(self,llm:any, deps:Deps = None, instructions:str = None, tools:list = [], mcp_servers:list = [], summarizer:bool = False, custom_summarizer_agent:Agent = None, memory_length:int = 20, memory_summarizer_length:int = 15, use_memory:bool = True):
+    def __init__(self,llm:any, deps:Deps = None,voice:bool = False, instructions:str = None, tools:list = [], mcp_servers:list = [], summarizer:bool = False, custom_summarizer_agent:Agent = None, memory_length:int = 20, memory_summarizer_length:int = 15, use_memory:bool = True):
         """
         ## Args:
         ### llm
@@ -31,6 +31,9 @@ class TAgent:
             OpenAIModel('gpt-4.1-mini',provider=OpenAIProvider(api_key=api_keys['openai_api_key'])) (recommended for mcp servers)
             AnthropicModel('claude-3-5-sonnet-20240620', provider=AnthropicProvider(api_key=api_keys['anthropic_api_key'])) (recommended for mcp servers but more expensive)
             ```
+            \n
+        ### voice
+            voice (bool): Whether to use the voice or not default is False
             \n
         ### deps
             deps (Deps): The deps to use for the agent, if not provided, the default deps will be used
@@ -64,7 +67,7 @@ class TAgent:
             memory_summarizer_length (int): The number of messages to summarize, default is 15
             \n
         ### use_memory
-            use_memory (bool): Whether to use the memory or not default is True
+            use_memory (bool): Whether to use the built in memory or not default is True
             \n
         ### mpc_servers
             mcp_servers (list): The list of MCP servers to use, they have to be a list of pydantic_ai MCP servers:
@@ -115,7 +118,7 @@ class TAgent:
         self.llm=llm
         self.tools=tools
         self.mcp_servers = mcp_servers
-
+        self.voice=voice
 
         #deps
         if deps:
@@ -138,15 +141,18 @@ class TAgent:
                 self.summarize_agent=self.custom_summarizer_agent
 
                
-        
+
         self._mcp_context_manager = None
         self._is_connected = False
         
         #agent
         @dataclass
-        class Cortana_output:
+        class TAgent_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
+        @dataclass
+        class TAgent_output_novoice:
+            ui_version: str = Field(description='a markdown format version of the answer for displays if necessary')
 
         if instructions:
             self.instructions = instructions
@@ -168,7 +174,7 @@ class TAgent:
         
         self.agent=Agent(
             self.llm, 
-            output_type=Cortana_output, 
+            output_type=TAgent_output_novoice if self.voice else TAgent_output, 
             tools=self.tools,
             mcp_servers=self.mcp_servers, 
             instructions=self.instructions
@@ -333,3 +339,8 @@ class TAgent:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         await self.disconnect()
+    
+    def reset(self):
+        """Reset the agent state"""
+        self.memory.messages=[]
+        
