@@ -6,10 +6,10 @@ class MCP_server_helper:
     **Example:**
     ```python
         mcp_server_helper=MCP_server_helper()
-        mcp_server_helper.add_mpc_server(type='http', mpc_server_url='https://mcp.notion.com/mcp', headers=None)
-        mcp_server_helper.add_mpc_server(type='sse', mpc_server_url='https://mcp.notion.com/sse', headers=None)
-        mcp_server_helper.add_mpc_server(type='stdio', command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'], env=None)
-        mcp_server_helper.get_mpc_servers()
+        mcp_server_helper.add_mcp_server(type='http', mcp_server_url='https://mcp.notion.com/mcp', headers=None)
+        mcp_server_helper.add_mcp_server(type='sse', mcp_server_url='https://mcp.notion.com/sse', headers=None)
+        mcp_server_helper.add_mcp_server(type='stdio', command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'], env=None)
+        mcp_server_helper.get_mcp_servers()
     ```
     Returns:
         list: A list of MCP servers
