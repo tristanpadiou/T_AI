@@ -150,9 +150,7 @@ class TAgent:
         class TAgent_output:
             ui_version: str= Field(description='a markdown format version of the answer for displays if necessary')
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
-        @dataclass
-        class TAgent_output_novoice:
-            ui_version: str = Field(description='a markdown format version of the answer for displays if necessary')
+        
 
         if instructions:
             self.instructions = instructions
@@ -174,7 +172,7 @@ class TAgent:
         
         self.agent=Agent(
             self.llm, 
-            output_type=TAgent_output_novoice if self.voice else TAgent_output, 
+            output_type= str if not self.voice else TAgent_output, 
             tools=self.tools,
             mcp_servers=self.mcp_servers, 
             instructions=self.instructions
@@ -284,7 +282,7 @@ class TAgent:
 
         ## Returns
 
-        - `Cortana_output`: as a pydantic object, the ui_version and voice_version are the two fields of the object
+        - `Cortana_output`: as a pydantic object, the ui_version and voice_version are the two fields of the object if voice is True, otherwise it is a string
 
         ## Extra Notes
         The deps and message_history of cortana can be accessed using the following code:
