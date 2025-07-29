@@ -356,7 +356,7 @@ async def main():
     
     # Setup MCP servers
     mcp_helper = MCP_server_helper()
-    mcp_helper.add_mpc_server(type='stdio', command='npx', 
+    mcp_helper.add_mcp_server(type='stdio', command='npx', 
                              args=['-y', '@modelcontextprotocol/server-filesystem', '/tmp'])
     
     # Setup tools
@@ -376,7 +376,7 @@ async def main():
         llm=llm,
         deps=deps,
         tools=tools,
-        mcp_servers=mcp_helper.get_mpc_servers(),
+        mcp_servers=mcp_helper.get_mcp_servers(),
         summarizer=True,
         memory_length=20,
         instructions="You are a helpful AI assistant with access to various tools and services."

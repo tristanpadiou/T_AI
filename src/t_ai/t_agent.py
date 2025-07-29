@@ -19,7 +19,7 @@ class Deps:
     user:str
     
 class TAgent:
-    def __init__(self,llm:any, deps:Deps = None, instructions:str = None, tools:list = [], mpc_servers:list = [], summarizer:bool = False, custom_summarizer_agent:Agent = None, memory_length:int = 20, memory_summarizer_length:int = 15, use_memory:bool = True):
+    def __init__(self,llm:any, deps:Deps = None, instructions:str = None, tools:list = [], mcp_servers:list = [], summarizer:bool = False, custom_summarizer_agent:Agent = None, memory_length:int = 20, memory_summarizer_length:int = 15, use_memory:bool = True):
         """
         ## Args:
         ### llm
@@ -67,7 +67,7 @@ class TAgent:
             use_memory (bool): Whether to use the memory or not default is True
             \n
         ### mpc_servers
-            mpc_servers (list): The list of MCP servers to use, they have to be a list of pydantic_ai MCP servers:
+            mcp_servers (list): The list of MCP servers to use, they have to be a list of pydantic_ai MCP servers:
             \n
             **example:**
                 example:
@@ -85,9 +85,9 @@ class TAgent:
 
             mcp_server_helper=MCP_server_helper()
 
-            mcp_server_helper.add_mpc_server(type='http', mpc_server_url='https://mcp.notion.com/mcp', headers=None)
+            mcp_server_helper.add_mcp_server(type='http', mcp_server_url='https://mcp.notion.com/mcp', headers=None)
            
-            mcp_server_helper.get_mpc_servers()
+            mcp_server_helper.get_mcp_servers()
             ```
             \n
         ### tools
@@ -114,7 +114,7 @@ class TAgent:
         
         self.llm=llm
         self.tools=tools
-        self.mpc_servers = mpc_servers
+        self.mcp_servers = mcp_servers
 
 
         #deps
@@ -170,7 +170,7 @@ class TAgent:
             self.llm, 
             output_type=Cortana_output, 
             tools=self.tools,
-            mcp_servers=self.mpc_servers, 
+            mcp_servers=self.mcp_servers, 
             instructions=self.instructions
         )
         
