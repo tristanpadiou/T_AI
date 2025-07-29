@@ -16,7 +16,7 @@ class MCP_server_helper:
     """
     def __init__(self):
         self.mcp_servers=[]
-    def add_mcp_server(self, type:str, mcp_server_url:None, headers:dict = None, command:str = None, args:list = None, env:dict = None, timeout:int = 60):
+    def add_mcp_server(self, type:str, mcp_server_url:str = None, headers:dict = None, command:str = None, args:list = None, env:dict = None, timeout:int = 60):
         """
         Add an MCP server to the list of MCP servers
         Args:
