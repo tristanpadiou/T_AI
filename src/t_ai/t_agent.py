@@ -323,11 +323,11 @@ class TAgent:
                             self.memory.messages=result.all_messages()
                     else:
                         result=await self.agent.run(query, deps=self.deps)
-                    return result.output
+                    return result
                 except Exception as reconnect_error:
                     return f"Chat failed and reconnection failed: {reconnect_error}"
        
-        return result.output
+        return result
     
     
     async def __aenter__(self):
@@ -339,7 +339,15 @@ class TAgent:
         """Async context manager exit"""
         await self.disconnect()
     
-    def reset(self):
+    async def reset(self):
         """Reset the agent state"""
-        self.memory.messages=[]
+
+        if self.use_memory:
+            if self._is_connected:
+                await self.disconnect()
+            self.memory.messages=[]
+       
+            return "Agent reset"
+        else:
+            return "no memory to reset"
         
