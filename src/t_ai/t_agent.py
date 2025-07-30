@@ -19,7 +19,7 @@ class Deps:
     user:str
     
 class TAgent:
-    def __init__(self,llm:any, deps:Deps = None,voice:bool = False, instructions:str = None, tools:list = [], mcp_servers:list = [], summarizer:bool = False, custom_summarizer_agent:Agent = None, memory_length:int = 20, memory_summarizer_length:int = 15, use_memory:bool = True):
+    def __init__(self,llm:any, deps:Deps = None,voice:bool = False, instructions:str = None, tools:list = [], mcp_servers:list = [], summarizer:bool = False, custom_summarizer_agent:Agent = None, memory_length:int = 20, memory_summarizer_length:int = 15, use_memory:bool = True, retries:int = 3):
         """
         ## Args:
         ### llm
@@ -119,7 +119,7 @@ class TAgent:
         self.tools=tools
         self.mcp_servers = mcp_servers
         self.voice=voice
-
+        self.retries=retries
         #deps
         if deps:
             self.deps=deps
@@ -174,6 +174,7 @@ class TAgent:
             self.llm, 
             output_type= str if not self.voice else TAgent_output, 
             tools=self.tools,
+            retries=self.retries,
             mcp_servers=self.mcp_servers, 
             instructions=self.instructions
         )
