@@ -283,7 +283,7 @@ class TAgent:
 
         ## Returns
 
-        - `Cortana_output`: as a pydantic object, the ui_version and voice_version are the two fields of the object if voice is True, otherwise it is a string
+        - `output`: as a pydantic object, the output is the output of the agent, it is a string if voice is False, otherwise it is a pydantic object with the ui_version and voice_version fields
 
         ## Extra Notes
         The deps and message_history of cortana can be accessed using the following code:
@@ -292,11 +292,16 @@ class TAgent:
         cortana_agent.memory.messages
         ```
         """
+        @dataclass
+        class failed_output:
+            output:str
+        
+
         if not self._is_connected:
             try:
                 await self.connect()
             except Exception as e:
-                return f"Failed to connect to MCP server before chat: {e}"
+                return failed_output(output=f"Failed to connect to MCP server before chat: {e}")
             
         try:
             if self.use_memory:
@@ -325,7 +330,7 @@ class TAgent:
                         result=await self.agent.run(query, deps=self.deps)
                     return result
                 except Exception as reconnect_error:
-                    return f"Chat failed and reconnection failed: {reconnect_error}"
+                    return failed_output(output=f"Chat failed and reconnection failed: {reconnect_error}")
        
         return result
     
