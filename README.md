@@ -48,7 +48,7 @@ pip install -r requirements.txt
 
 ## 🔧 Core Dependencies
 
-- **pydantic-ai >= 0.4.0**: Core AI framework
+- **pydantic-ai >= 0.6.2**: Core AI framework
 - **tavily-python >= 0.5.1**: Web search capabilities
 
 ## 🚀 Quick Start
@@ -95,7 +95,7 @@ agent = TAgent(
     deps=custom_deps,                          # Optional: Custom dependencies object
     instructions="Custom instructions",        # Optional: Agent instructions
     tools=[],                                  # Optional: List of custom tools
-    mcp_servers=[],                            # Optional: List of MCP servers
+    toolsets=[],                               # Optional: List of toolsets, can be mcp servers
     summarizer=False,                          # Optional: Enable conversation summarization
     custom_summarizer_agent=None,              # Optional: Custom summarizer agent
     memory_length=20,                          # Optional: Messages before summarization
@@ -121,7 +121,7 @@ mcp_helper.add_mcp_server(type='sse', mcp_server_url='https://mcp.notion.com/sse
 mcp_helper.add_mcp_server(type='stdio', command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'])
 
 # Initialize agent with MCP servers
-agent = TAgent(llm=llm, mcp_servers=mcp_helper.get_mpc_servers())
+agent = TAgent(llm=llm, toolsets=mcp_helper.get_mpc_servers())
 ```
 
 ### Direct MCP Server Setup
@@ -135,7 +135,7 @@ mcp_servers = [
     MCPServerStdio(command='npx', args=['-y', 'mcp-remote', 'https://mcp.notion.com/mcp'])
 ]
 
-agent = TAgent(llm=llm, mcp_servers=mcp_servers)
+agent = TAgent(llm=llm, toolsets=mcp_servers)
 ```
 
 ## 🛠️ Built-in Tools
@@ -284,7 +284,7 @@ response = await agent.chat([
 
 ```python
 async def main():
-    async with TAgent(llm=llm, mcp_servers=mcp_servers) as agent:
+    async with TAgent(llm=llm, toolsets=mcp_servers) as agent:
         # MCP servers are automatically connected
         response = await agent.chat(["Help me with my Notion workspace"])
         print(response.ui_version)
@@ -294,7 +294,7 @@ async def main():
 ### Manual Connection Management
 
 ```python
-agent = TAgent(llm=llm, mcp_servers=mcp_servers)
+agent = TAgent(llm=llm, toolsets=mcp_servers)
 
 # Connect manually
 await agent.connect()
@@ -384,7 +384,7 @@ async def main():
         llm=llm,
         deps=deps,
         tools=tools,
-        mcp_servers=mcp_helper.get_mcp_servers(),
+        toolsets=mcp_helper.get_mcp_servers(),
         summarizer=True,
         memory_length=20,
         instructions="You are a helpful AI assistant with access to various tools and services."
@@ -466,4 +466,4 @@ For issues and questions:
 
 - Built on top of [pydantic-ai](https://github.com/pydantic/pydantic-ai)
 - MCP (Model Context Protocol) integration
-- Google AI and OpenAI API support
+- All pydantic-ai models support

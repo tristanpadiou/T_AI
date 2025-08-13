@@ -3,6 +3,7 @@ import asyncio
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest,ModelResponse
 
+
 from dataclasses import dataclass
 from datetime import datetime
 from pydantic import Field
@@ -19,7 +20,7 @@ class Deps:
     user:str
     
 class TAgent:
-    def __init__(self,llm:any, deps:Deps = None,voice:bool = False, instructions:str = None, tools:list = [], mcp_servers:list = [], summarizer:bool = False, custom_summarizer_agent:Agent = None, memory_length:int = 20, memory_summarizer_length:int = 15, use_memory:bool = True, retries:int = 3):
+    def __init__(self,llm:any, deps:Deps = None,voice:bool = False,system_prompt:str = None, instructions:str = None, tools:list = [], toolsets:list = [], summarizer:bool = False, custom_summarizer_agent:Agent = None, memory_length:int = 20, memory_summarizer_length:int = 15, use_memory:bool = True, retries:int = 3):
         """
         ## Args:
         ### llm
@@ -30,6 +31,14 @@ class TAgent:
             GoogleModel('gemini-2.5-flash', provider=GoogleProvider(api_key=api_keys['google_api_key']))
             OpenAIModel('gpt-4.1-mini',provider=OpenAIProvider(api_key=api_keys['openai_api_key'])) (recommended for mcp servers)
             AnthropicModel('claude-3-5-sonnet-20240620', provider=AnthropicProvider(api_key=api_keys['anthropic_api_key'])) (recommended for mcp servers but more expensive)
+            ```
+            \n
+        ### system_prompt
+            system_prompt (str): The system prompt to use for the agent, if not provided, the default system prompt will be used
+            \n
+            **example:**
+            ```python
+            "You are a helpful assistant capable of handling a wide range of tasks."
             ```
             \n
         ### voice
@@ -69,8 +78,8 @@ class TAgent:
         ### use_memory
             use_memory (bool): Whether to use the built in memory or not default is True
             \n
-        ### mpc_servers
-            mcp_servers (list): The list of MCP servers to use, they have to be a list of pydantic_ai MCP servers:
+        ### toolsets
+            toolsets (list): The list of toolsets to use, it can be a list of MCP servers, or a list of toolsets:
             \n
             **example:**
                 example:
@@ -92,6 +101,7 @@ class TAgent:
            
             mcp_server_helper.get_mcp_servers()
             ```
+            see more about toolsets [here](https://ai.pydantic.dev/toolsets/)
             \n
         ### tools
             tools (list): The list of tools to use as functions:
@@ -117,7 +127,7 @@ class TAgent:
         
         self.llm=llm
         self.tools=tools
-        self.mcp_servers = mcp_servers
+        self.toolsets = toolsets 
         self.voice=voice
         self.retries=retries
         #deps
@@ -142,7 +152,7 @@ class TAgent:
 
                
 
-        self._mcp_context_manager = None
+        self._mcp_context_managers = []
         self._is_connected = False
         
         #agent
@@ -152,71 +162,71 @@ class TAgent:
             voice_version: str = Field(description='a conversationnal version of the answer for text to voice')
         
 
-        if instructions:
-            self.instructions = instructions
-        else:
-            self.instructions = """
-        # You are a helpful AI Assistant
-
-        ## Your Role:
-        You are a helpful assistant capable of handling a wide range of tasks.
-
-        ## Available Information:
-        - Current time and date
-        - User query and context
-        - User's name (always refer to them by their first name)
-        - Various tools and capabilities
-        - always ask the user for confirmation before using any tool
-
-        """
+        self.instructions=instructions if instructions else None
+        self.system_prompt=system_prompt if system_prompt else "You are a helpful assistant capable of handling a wide range of tasks."
         
         self.agent=Agent(
             self.llm, 
             output_type= str if not self.voice else TAgent_output, 
             tools=self.tools,
             retries=self.retries,
-            mcp_servers=self.mcp_servers, 
-            instructions=self.instructions
+            toolsets=self.toolsets, 
+            instructions=self.instructions,
+            system_prompt=self.system_prompt
         )
+  
         
         
     
     async def connect(self):
-        """Establish persistent connection to MCP server"""
-        if not self._is_connected:
-            print("Initializing MCP server connection...")
-            self._mcp_context_manager = self.agent.run_mcp_servers()
+        """Establish persistent connection to MCP servers"""
+        if not self._is_connected and self.mcp_servers:
+            print("Initializing MCP server connections...")
+            self._mcp_context_managers = []
             try:
-                print("Connecting to MCP server (this may take a moment on first run)...")
-                await self._mcp_context_manager.__aenter__()
+                print("Connecting to MCP servers (this may take a moment on first run)...")
+                for server in self.mcp_servers:
+                    # MCP servers have built-in __aenter__ and __aexit__ methods
+                    await server.__aenter__()
+                    self._mcp_context_managers.append(server)
                 self._is_connected = True
-                return "Connected to MCP server"
+                return "Connected to MCP servers"
             except Exception as e:
-                print(f"Failed to connect to MCP server: {e}")
-                # Clean up on failure
-                self._mcp_context_manager = None
+                print(f"Failed to connect to MCP servers: {e}")
+                # Clean up on failure - disconnect any that were connected
+                for server in self._mcp_context_managers:
+                    try:
+                        await server.__aexit__(None, None, None)
+                    except:
+                        pass
+                self._mcp_context_managers = []
                 self._is_connected = False
                 raise e
+        elif not self.mcp_servers:
+            self._is_connected = True
+            return "No MCP servers to connect"
 
     async def disconnect(self):
-        """Close the MCP server connection"""
-        if self._is_connected and self._mcp_context_manager:
+        """Close the MCP server connections"""
+        if self._is_connected and hasattr(self, '_mcp_context_managers') and self._mcp_context_managers:
             try:
-                await self._mcp_context_manager.__aexit__(None, None, None)
-            except Exception as e:
-                # Log the error but continue cleanup
-                print(f"Warning: Error during MCP server disconnect: {e}")
+                for server in self._mcp_context_managers:
+                    try:
+                        await server.__aexit__(None, None, None)
+                    except Exception as e:
+                        # Log the error but continue cleanup
+                        print(f"Warning: Error during MCP server disconnect: {e}")
             finally:
                 self._is_connected = False
-                self._mcp_context_manager = None
-            return "Disconnected from MCP server"
-        elif self._mcp_context_manager:
-            # Handle case where context manager exists but connection flag is wrong
-            self._mcp_context_manager = None
+                self._mcp_context_managers = []
+            return "Disconnected from MCP servers"
+        elif hasattr(self, '_mcp_context_managers') and self._mcp_context_managers:
+            # Handle case where context managers exist but connection flag is wrong
+            self._mcp_context_managers = []
             self._is_connected = False
             return "Cleaned up MCP server resources"
         else:
-            return "No MCP server connection to disconnect"
+            return "No MCP server connections to disconnect"
     #summarize old messages
     async def summarizer(self,result):
         """
@@ -334,15 +344,6 @@ class TAgent:
        
         return result
     
-    
-    async def __aenter__(self):
-        """Async context manager entry"""
-        await self.connect()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit"""
-        await self.disconnect()
     
     async def reset(self):
         """Reset the agent state"""
