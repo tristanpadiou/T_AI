@@ -180,12 +180,12 @@ class TAgent:
     
     async def connect(self):
         """Establish persistent connection to MCP servers"""
-        if not self._is_connected and self.mcp_servers:
+        if not self._is_connected and self.toolsets:
             print("Initializing MCP server connections...")
             self._mcp_context_managers = []
             try:
                 print("Connecting to MCP servers (this may take a moment on first run)...")
-                for server in self.mcp_servers:
+                for server in self.toolsets:
                     # MCP servers have built-in __aenter__ and __aexit__ methods
                     await server.__aenter__()
                     self._mcp_context_managers.append(server)
@@ -202,7 +202,7 @@ class TAgent:
                 self._mcp_context_managers = []
                 self._is_connected = False
                 raise e
-        elif not self.mcp_servers:
+        elif not self.toolsets:
             self._is_connected = True
             return "No MCP servers to connect"
 

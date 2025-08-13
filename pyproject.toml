@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "T-AI-project"
-version = "0.1.8"
+version = "0.1.9"
 description = "A Simplified Agent Framework built on top of pydantic_ai to create ai agent with tools,mcps and memory/deps management"
 # Make README path relative to project root (hide for hugging face spaces)
 readme = {file = "README.md", content-type = "text/markdown"}
